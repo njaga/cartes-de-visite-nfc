@@ -2,12 +2,16 @@
 
 Application interne de gestion des cartes de visite digitales NFC du Groupe Vigilus.
 
+## URL publique temporaire
+
+Pour le moment, l’application utilise `https://cartes-de-visite-nfc.vercel.app` comme domaine public pour les liens NFC, QR et vCard. Cette valeur est centralisée dans `src/lib/site-url.ts` et pourra être remplacée plus tard par un domaine personnalisé sans changer les tokens NFC.
+
 ## Principe
 
 La carte physique ne stocke qu'une URL stable :
 
 \`\`\`
-https://card.groupevigilus.com/n/<token>
+https://cartes-de-visite-nfc.vercel.app/n/<token>
 \`\`\`
 
 Le token reste le même pendant toute la durée de vie de la carte. Les coordonnées, le poste, la filiale, les réseaux sociaux et le comportement après scan sont modifiés depuis l'administration sans reprogrammer la puce NFC.
@@ -64,7 +68,7 @@ SQLite convient à un serveur Node/VPS avec disque persistant. Pour un déploiem
 Copier \`.env.example\` vers \`.env.local\` :
 
 \`\`\`env
-NEXT_PUBLIC_SITE_URL=https://card.groupevigilus.com
+NEXT_PUBLIC_SITE_URL=https://cartes-de-visite-nfc.vercel.app
 DB_PATH=./data/vigilus-cards.db
 
 ADMIN_EMAIL=admin@groupevigilus.com
@@ -92,7 +96,7 @@ http://localhost:3000/admin/login
 Pour chaque carte physique, écrire uniquement :
 
 \`\`\`
-https://card.groupevigilus.com/n/<token>
+https://cartes-de-visite-nfc.vercel.app/n/<token>
 \`\`\`
 
 Après test sur iPhone et Android, verrouiller l'écriture du tag NFC. Ne jamais encoder le numéro, l'e-mail ou la vCard complète directement dans la puce : ces données doivent rester modifiables depuis l'application.

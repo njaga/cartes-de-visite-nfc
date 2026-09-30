@@ -3,6 +3,7 @@ import { updateProvisioningAction } from "@/app/admin/actions";
 import { CopyShareField } from "@/components/copy-share-field";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getBrandConfig, getCardById } from "@/lib/db";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export default async function ProvisionCardPage({ params, searchParams }: Provis
 
   if (!card) notFound();
 
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const baseUrl = getPublicSiteUrl();
   const nfcUrl = baseUrl + "/n/" + card.nfcToken;
   const fullName = card.firstName + " " + card.lastName;
   const brand = getBrandConfig(card.subsidiary);

@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { getAdminUser } from "@/lib/admin-auth";
 import { getBrandConfig, getCardById } from "@/lib/db";
 import { contentTypeForFile, uploadsDirectory } from "@/lib/uploads";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -164,7 +165,7 @@ export async function GET(request: Request, context: RouteContext) {
   const brand = getBrandConfig(card.subsidiary);
   const requestUrl = new URL(request.url);
   const side = requestUrl.searchParams.get("side") === "back" ? "back" : "front";
-  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || requestUrl.origin;
+  const origin = getPublicSiteUrl();
   const nfcUrl = origin + "/n/" + card.nfcToken;
 
   const logoHref = await embeddedAsset(brand.logoUrl || "/branding/vigilus-groupe-sa.png", origin);

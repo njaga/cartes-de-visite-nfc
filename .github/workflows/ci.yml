@@ -31,7 +31,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_SITE_URL: https://card.groupevigilus.com
+          NEXT_PUBLIC_SITE_URL: https://cartes-de-visite-nfc.vercel.app
           DB_PATH: ./data/ci.db
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: ci-only-password

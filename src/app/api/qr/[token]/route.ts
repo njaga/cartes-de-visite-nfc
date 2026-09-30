@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { getProfileByNfcToken } from "@/lib/db";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -16,8 +17,7 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const requestUrl = new URL(request.url);
-  const configuredBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  const baseUrl = configuredBase || requestUrl.origin;
+  const baseUrl = getPublicSiteUrl();
   const target = baseUrl + "/n/" + profile.nfcToken + "?src=qr";
 
   const svg = await QRCode.toString(target, {

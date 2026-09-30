@@ -11,6 +11,7 @@ import {
 import { getAdminUser } from "@/lib/admin-auth";
 import { getBrandConfig, getCardById } from "@/lib/db";
 import { uploadsDirectory } from "@/lib/uploads";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -145,8 +146,7 @@ export async function GET(request: Request, context: RouteContext) {
   if (!card) return new Response("Carte introuvable", { status: 404 });
 
   const brand = getBrandConfig(card.subsidiary);
-  const requestUrl = new URL(request.url);
-  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || requestUrl.origin;
+  const origin = getPublicSiteUrl();
   const nfcUrl = origin + "/n/" + card.nfcToken;
 
   const pdf = await PDFDocument.create();

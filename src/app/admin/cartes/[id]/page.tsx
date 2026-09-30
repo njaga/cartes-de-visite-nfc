@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { AdminCardForm } from "@/components/admin-card-form";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getCardById } from "@/lib/db";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function EditCardPage({ params, searchParams }: EditCardPag
 
   if (!card) notFound();
 
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const baseUrl = getPublicSiteUrl();
   const nfcUrl = baseUrl + "/n/" + card.nfcToken;
 
   return (
