@@ -14,14 +14,18 @@ import {
 import {
   getCardById,
   getProfileByEmail,
+  createLead,
   getProfileBySlug,
   saveBrandConfig,
   saveCard,
+  saveCardLandingData,
   setCardActive,
-  setCardProvisioningStatus
+  setCardProvisioningStatus,
+  updateLeadStatus
 } from "@/lib/db";
 import { saveUploadedImage } from "@/lib/uploads";
 import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
+import type { CardLandingData, CardResource } from "@/lib/landing";
 
 function value(formData: FormData, key: string) {
   const raw = formData.get(key);
@@ -65,6 +69,23 @@ function cell(row: Record<string, unknown>, ...keys: string[]) {
     if (raw !== undefined && raw !== null) return String(raw).trim();
   }
   return "";
+}
+
+async function uploadedOrValue(
+  formData: FormData,
+  fileKey: string,
+  valueKey: string
+) {
+  const file = formData.get(fileKey);
+  if (file instanceof File && file.size > 0) {
+    return saveUploadedImage(file);
+  }
+  return value(formData, valueKey) || undefined;
+}
+
+function resourceType(raw: string): CardResource["resourceType"] {
+  if (raw === "video" || raw === "catalogue" || raw === "link") return raw;
+  return "pdf";
 }
 
 function rowSocialLinks(row: Record<string, unknown>): SocialLink[] {
@@ -301,4 +322,169 @@ export async function saveBrandAction(formData: FormData) {
   revalidatePath("/admin/filiales");
   revalidatePath("/admin");
   redirect("/admin/filiales?saved=" + encodeURIComponent(subsidiary));
+}
+
+
+export async function saveLandingAction(formData: FormData) {
+  await requireAdmin();
+
+  const cardId = Number(value(formData, "cardId"));
+  if (!Number.isFinite(cardId)) redirect("/admin");
+
+  const card = await getCardById(cardId);
+  if (!card) redirect("/admin");
+
+  const heroImageUrl = await uploadedOrValue(formData, "heroImageFile", "heroImageUrl");
+
+  const services = [];
+  for (let index = 0; index < 4; index += 1) {
+    const title = value(formData, "serviceTitle" + index);
+    if (!title) continue;
+    services.push({
+      title,
+      description: value(formData, "serviceDescription" + index) || undefined,
+      url: value(formData, "serviceUrl" + index) || undefined,
+      imageUrl: await uploadedOrValue(
+        formData,
+        "serviceImageFile" + index,
+        "serviceImageUrl" + index
+      )
+    });
+  }
+
+  const resources = [];
+  for (let index = 0; index < 3; index += 1) {
+    const title = value(formData, "resourceTitle" + index);
+    const url = value(formData, "resourceUrl" + index);
+    if (!title || !url) continue;
+    resources.push({
+      title,
+      description: value(formData, "resourceDescription" + index) || undefined,
+      resourceType: resourceType(value(formData, "resourceType" + index)),
+      url,
+      thumbnailUrl: await uploadedOrValue(
+        formData,
+        "resourceThumbnailFile" + index,
+        "resourceThumbnailUrl" + index
+      )
+    });
+  }
+
+  const gallery = [];
+  for (let index = 0; index < 5; index += 1) {
+    const imageUrl = await uploadedOrValue(
+      formData,
+      "galleryFile" + index,
+      "galleryImageUrl" + index
+    );
+    if (!imageUrl) continue;
+    gallery.push({
+      imageUrl,
+      caption: value(formData, "galleryCaption" + index) || undefined,
+      altText: value(formData, "galleryAlt" + index) || undefined
+    });
+  }
+
+  const highlights = [];
+  for (let index = 0; index < 3; index += 1) {
+    const label = value(formData, "highlightLabel" + index);
+    if (!label) continue;
+    highlights.push({
+      value: value(formData, "highlightValue" + index) || undefined,
+      label
+    });
+  }
+
+  const campaignTitle = value(formData, "campaignTitle");
+  const campaignImageUrl = await uploadedOrValue(
+    formData,
+    "campaignImageFile",
+    "campaignImageUrl"
+  );
+
+  const landing: CardLandingData = {
+    heroTitle: value(formData, "heroTitle") || undefined,
+    heroSubtitle: value(formData, "heroSubtitle") || undefined,
+    heroImageUrl,
+    heroBadge: value(formData, "heroBadge") || undefined,
+    aboutText: value(formData, "aboutText") || undefined,
+    languages: serviceList(value(formData, "languages")),
+    primaryCtaLabel: value(formData, "primaryCtaLabel") || undefined,
+    primaryCtaUrl: value(formData, "primaryCtaUrl") || undefined,
+    bookingUrl: value(formData, "bookingUrl") || undefined,
+    leadFormEnabled: formData.get("leadFormEnabled") === "on",
+    services,
+    resources,
+    gallery,
+    highlights,
+    campaign: campaignTitle
+      ? {
+          title: campaignTitle,
+          description: value(formData, "campaignDescription") || undefined,
+          imageUrl: campaignImageUrl,
+          ctaLabel: value(formData, "campaignCtaLabel") || undefined,
+          ctaUrl: value(formData, "campaignCtaUrl") || undefined,
+          startsAt: value(formData, "campaignStartsAt") || undefined,
+          endsAt: value(formData, "campaignEndsAt") || undefined,
+          active: formData.get("campaignActive") === "on"
+        }
+      : undefined
+  };
+
+  await saveCardLandingData(cardId, landing);
+
+  revalidatePath("/admin/cartes/" + cardId);
+  revalidatePath("/p/" + card.slug);
+  redirect("/admin/cartes/" + cardId + "?landingSaved=1#landing");
+}
+
+export async function submitLeadAction(formData: FormData) {
+  const slug = value(formData, "slug");
+  const cardId = Number(value(formData, "cardId"));
+  const honeypot = value(formData, "website");
+
+  if (honeypot) redirect("/p/" + slug + "?lead=1#lead-form");
+
+  const name = value(formData, "name");
+  const company = value(formData, "company");
+  const phone = value(formData, "phone");
+  const email = value(formData, "email");
+  const message = value(formData, "message");
+  const rawSource = value(formData, "source");
+  const source = rawSource === "nfc" || rawSource === "qr" ? rawSource : "web";
+
+  if (!Number.isFinite(cardId) || !slug || !name || (!phone && !email)) {
+    redirect("/p/" + slug + "?leadError=1&src=" + source + "#lead-form");
+  }
+
+  await createLead({
+    cardId,
+    name,
+    company: company || undefined,
+    phone: phone || undefined,
+    email: email || undefined,
+    message: message || undefined,
+    source
+  });
+
+  redirect("/p/" + slug + "?lead=1&src=" + source + "#lead-form");
+}
+
+export async function updateLeadStatusAction(formData: FormData) {
+  await requireAdmin();
+
+  const leadId = Number(value(formData, "leadId"));
+  const cardId = Number(value(formData, "cardId"));
+  const raw = value(formData, "status");
+  const status =
+    raw === "contacted" || raw === "qualified" || raw === "converted"
+      ? raw
+      : "new";
+
+  if (Number.isFinite(leadId)) {
+    await updateLeadStatus(leadId, status);
+  }
+
+  revalidatePath("/admin/cartes/" + cardId);
+  redirect("/admin/cartes/" + cardId + "#leads");
 }
