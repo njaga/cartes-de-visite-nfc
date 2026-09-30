@@ -63,9 +63,25 @@ export function AdminCardForm({ card }: { card?: DigitalCard }) {
       </div>
 
       <div className="admin-form-section">
-        <div className="admin-section-heading"><div><span>Profil digital</span><h2>Présentation & réseaux</h2></div></div>
+        <div className="admin-section-heading"><div><span>Profil digital</span><h2>Photo, présentation & réseaux</h2></div></div>
+
+        {card?.photoUrl && (
+          <div className="current-photo">
+            <img src={card.photoUrl} alt={"Photo de " + card.firstName + " " + card.lastName} />
+            <div><strong>Photo actuelle</strong><small>Importer une nouvelle photo la remplacera.</small></div>
+          </div>
+        )}
+
         <div className="admin-grid admin-grid-2">
-          <label className="admin-span-2"><span>Photo — URL</span><input name="photoUrl" type="url" defaultValue={card?.photoUrl ?? ""} placeholder="https://..." /></label>
+          <label className="admin-span-2">
+            <span>Importer une photo</span>
+            <input name="photoFile" type="file" accept="image/jpeg,image/png,image/webp" />
+            <small className="field-hint">JPG, PNG ou WEBP · 4 Mo maximum.</small>
+          </label>
+          <label className="admin-span-2">
+            <span>Ou utiliser une URL de photo</span>
+            <input name="photoUrl" type="text" defaultValue={card?.photoUrl ?? ""} placeholder="https://..." />
+          </label>
           <label className="admin-span-2"><span>Présentation</span><textarea name="presentation" rows={5} defaultValue={card?.presentation ?? ""} placeholder="Courte présentation professionnelle..." /></label>
           <label><span>LinkedIn</span><input name="linkedin" type="url" defaultValue={socialValue(card, "LinkedIn")} /></label>
           <label><span>Facebook</span><input name="facebook" type="url" defaultValue={socialValue(card, "Facebook")} /></label>

@@ -42,6 +42,9 @@ export default async function EditCardPage({ params, searchParams }: EditCardPag
             <a className="admin-secondary-button" href={"/p/" + card.slug} target="_blank">
               Voir le profil ↗
             </a>
+            <a className="admin-secondary-button" href={"/admin/cartes/" + card.id + "/impression"}>
+              Carte à imprimer
+            </a>
             <a className="admin-primary-button" href={"/admin/cartes/" + card.id + "/programmer"}>
               Programmer le NFC
             </a>

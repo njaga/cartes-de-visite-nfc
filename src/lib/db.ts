@@ -3,6 +3,8 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 import { seedProfiles } from "@/lib/profiles";
+import type { BrandConfig } from "@/lib/brands";
+import { defaultBrandConfigs, defaultBrandFor } from "@/lib/brands";
 
 type CardRow = {
   id: number;
@@ -31,6 +33,13 @@ type CardRow = {
   social_links: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type BrandRow = {
+  subsidiary: string;
+  primary_color: string;
+  accent_color: string;
+  logo_url: string | null;
 };
 
 const globalForDb = globalThis as unknown as {
@@ -80,14 +89,28 @@ function initializeDatabase() {
     "scanned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,",
     "FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE",
     ");",
+    "CREATE TABLE IF NOT EXISTS brand_configs (",
+    "subsidiary TEXT PRIMARY KEY,",
+    "primary_color TEXT NOT NULL,",
+    "accent_color TEXT NOT NULL,",
+    "logo_url TEXT",
+    ");",
     "CREATE INDEX IF NOT EXISTS idx_scans_card_id ON scans(card_id);",
-    "CREATE INDEX IF NOT EXISTS idx_scans_scanned_at ON scans(scanned_at);"
+    "CREATE INDEX IF NOT EXISTS idx_scans_scanned_at ON scans(scanned_at);",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_email_unique ON cards(lower(email));"
   ].join("\n"));
 
   ensureColumn(database, "nfc_status", "TEXT NOT NULL DEFAULT 'new'");
   ensureColumn(database, "programmed_at", "TEXT");
   ensureColumn(database, "tested_at", "TEXT");
   ensureColumn(database, "whatsapp", "TEXT");
+
+  const brandInsert = database.prepare(
+    "INSERT OR IGNORE INTO brand_configs (subsidiary,primary_color,accent_color,logo_url) VALUES (?,?,?,?)"
+  );
+  for (const brand of defaultBrandConfigs) {
+    brandInsert.run(brand.subsidiary, brand.primaryColor, brand.accentColor, brand.logoUrl ?? null);
+  }
 
   const count = database.prepare("SELECT COUNT(*) AS count FROM cards").get() as { count: number };
   if (count.count === 0) {
@@ -169,6 +192,16 @@ function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
   };
 }
 
+function rowToBrand(row: BrandRow | undefined): BrandConfig | undefined {
+  if (!row) return undefined;
+  return {
+    subsidiary: row.subsidiary,
+    primaryColor: row.primary_color,
+    accentColor: row.accent_color,
+    logoUrl: row.logo_url ?? undefined
+  };
+}
+
 export function getAllProfiles(options?: { includeInactive?: boolean }) {
   const where = options?.includeInactive ? "" : "WHERE active = 1";
   const rows = db().prepare("SELECT * FROM cards " + where + " ORDER BY first_name,last_name").all() as CardRow[];
@@ -180,6 +213,12 @@ export function getProfileBySlug(slug: string, options?: { includeInactive?: boo
     ? "SELECT * FROM cards WHERE slug = ? LIMIT 1"
     : "SELECT * FROM cards WHERE slug = ? AND active = 1 LIMIT 1";
   return rowToCard(db().prepare(sql).get(slug) as CardRow | undefined);
+}
+
+export function getProfileByEmail(email: string) {
+  return rowToCard(
+    db().prepare("SELECT * FROM cards WHERE lower(email)=lower(?) LIMIT 1").get(email) as CardRow | undefined
+  );
 }
 
 export function getProfileByNfcToken(token: string, options?: { includeInactive?: boolean }) {
@@ -262,6 +301,34 @@ export function setCardProvisioningStatus(id: number, status: NfcProvisioningSta
   db().prepare(
     "UPDATE cards SET nfc_status='tested',programmed_at=COALESCE(programmed_at,CURRENT_TIMESTAMP),tested_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?"
   ).run(id);
+}
+
+export function getBrandConfig(subsidiary: string) {
+  return (
+    rowToBrand(
+      db().prepare("SELECT * FROM brand_configs WHERE subsidiary=? LIMIT 1").get(subsidiary) as BrandRow | undefined
+    ) ?? defaultBrandFor(subsidiary)
+  );
+}
+
+export function getAllBrandConfigs() {
+  return (db().prepare("SELECT * FROM brand_configs ORDER BY subsidiary").all() as BrandRow[]).map(
+    (row) => rowToBrand(row)!
+  );
+}
+
+export function saveBrandConfig(config: BrandConfig) {
+  db().prepare([
+    "INSERT INTO brand_configs (subsidiary,primary_color,accent_color,logo_url)",
+    "VALUES (?,?,?,?)",
+    "ON CONFLICT(subsidiary) DO UPDATE SET",
+    "primary_color=excluded.primary_color, accent_color=excluded.accent_color, logo_url=excluded.logo_url"
+  ].join(" ")).run(
+    config.subsidiary,
+    config.primaryColor,
+    config.accentColor,
+    config.logoUrl || null
+  );
 }
 
 export function recordScan(
