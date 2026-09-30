@@ -229,3 +229,6 @@ https://cartes-de-visite-nfc.vercel.app
 Le projet Vercel doit définir `DATABASE_URL` avec la chaîne de connexion Neon. Les liens NFC, QR et vCard continuent d'utiliser l'URL publique stable définie par `NEXT_PUBLIC_SITE_URL`.
 
 La couche SQLite historique a été retirée afin d'éviter toute écriture dans `/var/task`, qui est en lecture seule sur Vercel.
+
+
+> État production : Neon est connecté au projet Vercel ; les déploiements utilisent PostgreSQL via `DATABASE_URL`.
