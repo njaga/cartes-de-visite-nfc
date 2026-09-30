@@ -12,8 +12,13 @@ function whatsappUrl(value: string) {
   return "https://wa.me/" + value.replace(/\D/g, "");
 }
 
-export function createVCard(profile: DigitalCard) {
+export function createVCard(profile: DigitalCard, baseUrl?: string) {
   const fullName = profile.firstName + " " + profile.lastName;
+  const photoUrl =
+    profile.photoUrl && profile.photoUrl.startsWith("/") && baseUrl
+      ? baseUrl.replace(/\/$/, "") + profile.photoUrl
+      : profile.photoUrl;
+
   const noteParts = [
     profile.presentation,
     profile.whatsapp ? "WhatsApp: " + profile.whatsapp : null,
@@ -32,7 +37,7 @@ export function createVCard(profile: DigitalCard) {
     "EMAIL;TYPE=INTERNET,WORK:" + escapeVCard(profile.email),
     "URL:" + escapeVCard(profile.website),
     "ADR;TYPE=WORK:;;" + escapeVCard(profile.address) + ";" + escapeVCard(profile.city) + ";;;" + escapeVCard(profile.country),
-    profile.photoUrl ? "PHOTO;VALUE=URI:" + escapeVCard(profile.photoUrl) : null,
+    photoUrl ? "PHOTO;VALUE=URI:" + escapeVCard(photoUrl) : null,
     profile.whatsapp ? "X-SOCIALPROFILE;TYPE=whatsapp:" + escapeVCard(whatsappUrl(profile.whatsapp)) : null,
     noteParts.length ? "NOTE:" + escapeVCard(noteParts.join(" — ")) : null,
     ...(profile.socialLinks ?? []).map(

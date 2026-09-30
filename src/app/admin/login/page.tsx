@@ -15,15 +15,15 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="admin-login-shell">
       <section className="admin-login-card">
-        <div className="profile-brand">
-          <span className="brand-mark brand-mark-small">V</span>
-          <div><strong>VIGILUS</strong><small>Digital Cards</small></div>
+        <div className="vigilus-logo-lockup">
+          <img src="/branding/vigilus-groupe-sa.png" alt="Vigilus" />
+          <small>Digital Cards</small>
         </div>
 
         <div className="admin-login-copy">
           <span>Administration</span>
           <h1>Gestion des cartes NFC</h1>
-          <p>Connectez-vous pour gérer les collaborateurs, les QR codes et les scans.</p>
+          <p>Collaborateurs, programmation NFC, QR codes, impression et statistiques.</p>
         </div>
 
         {error === "credentials" && <p className="admin-alert">E-mail ou mot de passe incorrect.</p>}

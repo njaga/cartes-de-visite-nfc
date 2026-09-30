@@ -29,9 +29,9 @@ export default async function AdminDashboardPage() {
   return (
     <main className="admin-shell">
       <header className="admin-topbar">
-        <div className="admin-brand">
-          <span className="brand-mark brand-mark-small">V</span>
-          <div><strong>VIGILUS</strong><small>Digital Cards</small></div>
+        <div className="admin-brand admin-brand-real">
+          <img src="/branding/vigilus-groupe-sa.png" alt="Vigilus" />
+          <small>Digital Cards</small>
         </div>
         <div className="admin-user">
           <span>{admin.email}</span>
@@ -46,7 +46,11 @@ export default async function AdminDashboardPage() {
             <h1>Cartes de visite digitales</h1>
             <p>Gérez les cartes, leur programmation NFC et les scans depuis un seul espace.</p>
           </div>
-          <Link className="admin-primary-button" href="/admin/cartes/nouvelle">+ Nouvelle carte</Link>
+          <div className="admin-heading-actions">
+            <Link className="admin-secondary-button" href="/admin/import">Importer Excel</Link>
+            <Link className="admin-secondary-button" href="/admin/filiales">Filiales</Link>
+            <Link className="admin-primary-button" href="/admin/cartes/nouvelle">+ Nouvelle carte</Link>
+          </div>
         </div>
 
         <div className="admin-stats">

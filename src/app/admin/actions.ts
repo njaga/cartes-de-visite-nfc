@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import * as XLSX from "xlsx";
 import {
   adminIsConfigured,
   clearAdminSession,
@@ -12,11 +13,14 @@ import {
 } from "@/lib/admin-auth";
 import {
   getCardById,
+  getProfileByEmail,
   getProfileBySlug,
+  saveBrandConfig,
   saveCard,
   setCardActive,
   setCardProvisioningStatus
 } from "@/lib/db";
+import { saveUploadedImage } from "@/lib/uploads";
 import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 
 function value(formData: FormData, key: string) {
@@ -45,6 +49,23 @@ function socialLinks(formData: FormData): SocialLink[] {
   return fields
     .map(([label, field]) => ({ label, url: value(formData, field) }))
     .filter((link) => Boolean(link.url));
+}
+
+function cell(row: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const raw = row[key];
+    if (raw !== undefined && raw !== null) return String(raw).trim();
+  }
+  return "";
+}
+
+function rowSocialLinks(row: Record<string, unknown>): SocialLink[] {
+  return [
+    { label: "LinkedIn", url: cell(row, "LinkedIn", "linkedin") },
+    { label: "Facebook", url: cell(row, "Facebook", "facebook") },
+    { label: "Instagram", url: cell(row, "Instagram", "instagram") },
+    { label: "X", url: cell(row, "X", "Twitter", "x") }
+  ].filter((link) => Boolean(link.url));
 }
 
 export async function loginAdmin(formData: FormData) {
@@ -82,6 +103,12 @@ export async function saveCardAction(formData: FormData) {
     slug = slug + "-" + randomUUID().slice(0, 6);
   }
 
+  let photoUrl = value(formData, "photoUrl") || existing?.photoUrl;
+  const photoFile = formData.get("photoFile");
+  if (photoFile instanceof File && photoFile.size > 0) {
+    photoUrl = await saveUploadedImage(photoFile);
+  }
+
   const card: DigitalCard = {
     id: existing?.id,
     slug,
@@ -105,7 +132,7 @@ export async function saveCardAction(formData: FormData) {
     city: value(formData, "city"),
     country: value(formData, "country"),
     presentation: value(formData, "presentation") || undefined,
-    photoUrl: value(formData, "photoUrl") || undefined,
+    photoUrl,
     socialLinks: socialLinks(formData)
   };
 
@@ -144,4 +171,103 @@ export async function updateProvisioningAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/cartes/" + id);
   redirect("/admin/cartes/" + id + "/programmer?updated=1");
+}
+
+export async function importCardsAction(formData: FormData) {
+  await requireAdmin();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect("/admin/import?error=file");
+  }
+
+  if (!file.name.toLowerCase().endsWith(".xlsx")) {
+    redirect("/admin/import?error=format");
+  }
+
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, {
+    defval: "",
+    raw: false
+  });
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const email = cell(row, "Email", "E-mail", "email").toLowerCase();
+    const firstName = cell(row, "Prénom", "Prenom", "First name");
+    const lastName = cell(row, "Nom", "Last name");
+    const jobTitle = cell(row, "Poste", "Fonction", "Job title");
+    const subsidiary = cell(row, "Filiale", "Subsidiary") || "Vigilus Sénégal";
+
+    if (!email || !firstName || !lastName || !jobTitle) {
+      skipped += 1;
+      continue;
+    }
+
+    const existing = getProfileByEmail(email);
+    let slug = existing?.slug || slugify(firstName + "-" + lastName) || "collaborateur";
+    if (!existing) {
+      const slugOwner = getProfileBySlug(slug, { includeInactive: true });
+      if (slugOwner) slug = slug + "-" + randomUUID().slice(0, 6);
+    }
+
+    const card: DigitalCard = {
+      id: existing?.id,
+      slug,
+      nfcToken: existing?.nfcToken || "vig-" + randomUUID().replace(/-/g, "").slice(0, 14),
+      nfcMode: existing?.nfcMode ?? "profile",
+      nfcStatus: existing?.nfcStatus ?? "new",
+      programmedAt: existing?.programmedAt,
+      testedAt: existing?.testedAt,
+      active: cell(row, "Actif", "Active").toLowerCase() !== "non",
+      firstName,
+      lastName,
+      jobTitle,
+      subsidiary,
+      company: cell(row, "Entreprise", "Company") || "VIGILUS Group",
+      mobile: cell(row, "Téléphone portable", "Telephone portable", "Mobile") || existing?.mobile,
+      whatsapp: cell(row, "WhatsApp", "Whatsapp") || existing?.whatsapp,
+      phone: cell(row, "Téléphone fixe", "Telephone fixe", "Fixe") || existing?.phone,
+      email,
+      website: cell(row, "Site web", "Website") || existing?.website || "https://www.groupevigilus.com",
+      address: cell(row, "Adresse", "Address") || existing?.address || "",
+      city: cell(row, "Ville", "City") || existing?.city || "Dakar",
+      country: cell(row, "Pays", "Country") || existing?.country || "Sénégal",
+      presentation: cell(row, "Présentation", "Presentation") || existing?.presentation,
+      photoUrl: cell(row, "Photo URL", "Photo") || existing?.photoUrl,
+      socialLinks: rowSocialLinks(row).length ? rowSocialLinks(row) : existing?.socialLinks
+    };
+
+    saveCard(card);
+    if (existing) updated += 1;
+    else created += 1;
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin");
+  redirect("/admin/import?created=" + created + "&updated=" + updated + "&skipped=" + skipped);
+}
+
+export async function saveBrandAction(formData: FormData) {
+  await requireAdmin();
+
+  const subsidiary = value(formData, "subsidiary");
+  const primaryColor = value(formData, "primaryColor") || "#13a3e3";
+  const accentColor = value(formData, "accentColor") || "#c30c29";
+  let logoUrl = value(formData, "logoUrl") || undefined;
+
+  const logoFile = formData.get("logoFile");
+  if (logoFile instanceof File && logoFile.size > 0) {
+    logoUrl = await saveUploadedImage(logoFile);
+  }
+
+  saveBrandConfig({ subsidiary, primaryColor, accentColor, logoUrl });
+
+  revalidatePath("/admin/filiales");
+  revalidatePath("/admin");
+  redirect("/admin/filiales?saved=" + encodeURIComponent(subsidiary));
 }

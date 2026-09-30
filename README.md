@@ -136,3 +136,75 @@ Le tableau de bord permet de voir immédiatement quelles cartes sont encore à p
 L'application expose un manifeste PWA et peut être ajoutée à l'écran d'accueil du téléphone. L'espace d'administration est responsive afin que la programmation puisse être réalisée directement à côté des cartes physiques.
 
 Le profil public propose également un accès WhatsApp. Le numéro WhatsApp peut être différent du téléphone portable ; s'il n'est pas renseigné, le portable peut être utilisé comme point de départ dans l'administration.
+
+
+## Import Excel massif
+
+L'écran \`/admin/import\` permet d'importer un fichier \`.xlsx\`.
+
+Un modèle est téléchargeable depuis \`/api/import-template\`.
+
+L'e-mail sert d'identifiant de rapprochement :
+- nouvel e-mail : création d'une carte avec nouveau token NFC ;
+- e-mail existant : mise à jour de la fiche en conservant le token NFC et le statut de programmation.
+
+Les colonnes minimales sont : Prénom, Nom, Poste et Email.
+
+## Upload des photos
+
+Les photos peuvent être importées directement depuis la fiche collaborateur.
+
+Formats acceptés :
+- JPG ;
+- PNG ;
+- WEBP ;
+- 4 Mo maximum.
+
+Les fichiers sont stockés dans le dossier persistant associé à \`DB_PATH\`, sous \`uploads/\`, puis servis par la route \`/uploads/<fichier>\`.
+
+## Identité visuelle par filiale
+
+L'écran \`/admin/filiales\` permet de configurer pour chaque filiale :
+- couleur principale ;
+- couleur accent ;
+- logo par URL ou upload.
+
+La configuration est utilisée automatiquement sur le profil digital et les fichiers de carte physique.
+
+## Carte physique recto-verso
+
+Chaque fiche collaborateur propose l'écran :
+
+\`/admin/cartes/<id>/impression\`
+
+Le système génère :
+- un recto avec identité, poste, filiale, photo et coordonnées ;
+- un verso NFC + QR ;
+- deux fichiers SVG téléchargeables au format fini 85,6 × 54 mm.
+
+Les SVG restent vectoriels pour le BAT et l'impression. Le fond perdu doit être ajouté selon les contraintes de l'imprimeur.
+
+
+## Identité Vigilus et BAT imprimeur
+
+Les logos sont stockés localement dans \`public/branding/\` et ne dépendent pas d'URLs distantes.
+
+Matrice par défaut :
+
+- \`VIGILUS Group\`, Vigilus Sénégal, Vigilus Guinée et Vigilus Côte d’Ivoire → \`vigilus-groupe-sa.png\` ;
+- Vigilus Sierra Leone et Vigilus Facilities → \`vigilus-facilities.png\` ;
+- Vigilus Mobility → \`vigilus-mobility.png\` ;
+- Vigilus Properties → \`vigilus-properties.png\` ;
+- Vigilus International et Vigilus Dubaï → \`vigilus-international.png\`.
+
+Le fichier historique \`vigilus-logo.png\` correspond au logo Facilities fourni initialement et est conservé uniquement pour compatibilité. La base migre automatiquement ces anciennes références vers le logo correspondant à la filiale.
+
+L'écran \`/admin/cartes/<id>/impression\` propose :
+- un aperçu réaliste recto/verso ;
+- les SVG autonomes avec logo et photo incorporés ;
+- un PDF imprimeur 2 pages ;
+- 3 mm de fond perdu ;
+- repères de coupe ;
+- TrimBox au format fini 85,6 × 54 mm ;
+- BleedBox au format 91,6 × 60 mm ;
+- QR code vectoriel.

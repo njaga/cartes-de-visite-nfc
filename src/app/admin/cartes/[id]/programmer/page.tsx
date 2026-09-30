@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { updateProvisioningAction } from "@/app/admin/actions";
 import { CopyShareField } from "@/components/copy-share-field";
 import { requireAdmin } from "@/lib/admin-auth";
-import { getCardById } from "@/lib/db";
+import { getBrandConfig, getCardById } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,7 @@ export default async function ProvisionCardPage({ params, searchParams }: Provis
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
   const nfcUrl = baseUrl + "/n/" + card.nfcToken;
   const fullName = card.firstName + " " + card.lastName;
+  const brand = getBrandConfig(card.subsidiary);
 
   return (
     <main className="provision-shell">
@@ -41,7 +42,9 @@ export default async function ProvisionCardPage({ params, searchParams }: Provis
 
       <section className="provision-card">
         <div className="provision-person">
-          <span className="brand-mark brand-mark-small">V</span>
+          <span className="provision-brand-logo">
+            <img src={brand.logoUrl || "/branding/vigilus-groupe-sa.png"} alt={card.subsidiary} />
+          </span>
           <div>
             <strong>{fullName}</strong>
             <small>{card.jobTitle} · {card.subsidiary}</small>
