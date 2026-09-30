@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getProfileByNfcToken } from "@/lib/profiles";
+import { getProfileByNfcToken, recordScan } from "@/lib/db";
+
+export const runtime = "nodejs";
 
 type RouteContext = {
   params: Promise<{ token: string }>;
@@ -13,10 +15,18 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  const requestUrl = new URL(request.url);
+  const source = requestUrl.searchParams.get("src") === "qr" ? "qr" : "nfc";
+
+  recordScan(token, source, {
+    userAgent: request.headers.get("user-agent"),
+    referer: request.headers.get("referer")
+  });
+
   const target =
     profile.nfcMode === "vcard"
-      ? `/p/${profile.slug}/contact.vcf`
-      : `/p/${profile.slug}`;
+      ? "/p/" + profile.slug + "/contact.vcf"
+      : "/p/" + profile.slug;
 
   return NextResponse.redirect(new URL(target, request.url), 307);
 }

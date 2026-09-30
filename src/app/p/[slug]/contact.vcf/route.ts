@@ -1,4 +1,4 @@
-import { getProfileBySlug } from "@/lib/profiles";
+import { getProfileBySlug } from "@/lib/db";
 import { createVCard } from "@/lib/vcard";
 
 type RouteContext = {

@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { getAllProfiles } from "@/lib/profiles";
+import { getAllProfiles } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   const profiles = getAllProfiles();

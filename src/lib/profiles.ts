@@ -4,6 +4,7 @@ export type SocialLink = {
 };
 
 export type DigitalCard = {
+  id?: number;
   slug: string;
   nfcToken: string;
   nfcMode: "profile" | "vcard";
@@ -23,9 +24,11 @@ export type DigitalCard = {
   presentation?: string;
   photoUrl?: string;
   socialLinks?: SocialLink[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-const profiles: DigitalCard[] = [
+export const seedProfiles: DigitalCard[] = [
   {
     slug: "demo-vigilus",
     nfcToken: "vig-demo-001",
@@ -53,15 +56,3 @@ const profiles: DigitalCard[] = [
     ]
   }
 ];
-
-export function getProfileBySlug(slug: string) {
-  return profiles.find((profile) => profile.slug === slug && profile.active);
-}
-
-export function getProfileByNfcToken(token: string) {
-  return profiles.find((profile) => profile.nfcToken === token && profile.active);
-}
-
-export function getAllProfiles() {
-  return profiles.filter((profile) => profile.active);
-}
