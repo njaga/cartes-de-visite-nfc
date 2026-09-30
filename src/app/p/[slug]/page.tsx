@@ -67,13 +67,11 @@ export default async function ProfilePage({ params }: PageProps) {
     <main className="profile-shell">
       <article className="profile-card" style={themeStyle}>
         <header className="profile-hero">
-          <div className="profile-brand">
-            {brand.logoUrl ? (
-              <span className="profile-brand-logo"><img src={brand.logoUrl} alt={profile.subsidiary} /></span>
-            ) : (
-              <span className="brand-mark brand-mark-small">V</span>
-            )}
-            <div><strong>VIGILUS</strong><small>{profile.subsidiary}</small></div>
+          <div className="profile-brand profile-brand-real">
+            <span className="profile-brand-logo">
+              <img src={brand.logoUrl || "/branding/vigilus-logo.png"} alt="Vigilus" />
+            </span>
+            <small>{profile.subsidiary}</small>
           </div>
 
           <div className="identity">

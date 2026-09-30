@@ -183,3 +183,22 @@ Le système génère :
 - deux fichiers SVG téléchargeables au format fini 85,6 × 54 mm.
 
 Les SVG restent vectoriels pour le BAT et l'impression. Le fond perdu doit être ajouté selon les contraintes de l'imprimeur.
+
+
+## Identité Vigilus et BAT imprimeur
+
+Le logo officiel utilisé par défaut est stocké localement dans :
+
+\`public/branding/vigilus-logo.png\`
+
+Il provient du fichier \`media/site/logo.png\` du site Vigilus Facilities et n'est pas chargé depuis une URL distante.
+
+L'écran \`/admin/cartes/<id>/impression\` propose :
+- un aperçu réaliste recto/verso ;
+- les SVG autonomes avec logo et photo incorporés ;
+- un PDF imprimeur 2 pages ;
+- 3 mm de fond perdu ;
+- repères de coupe ;
+- TrimBox au format fini 85,6 × 54 mm ;
+- BleedBox au format 91,6 × 60 mm ;
+- QR code vectoriel.

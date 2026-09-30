@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cantoo/pdf-lib": "^2.11.1",
     "better-sqlite3": "^13.0.3",
     "next": "^16.3.6",
     "qrcode": "^1.5.4",

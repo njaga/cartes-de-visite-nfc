@@ -1749,3 +1749,241 @@ svg {
     flex-wrap: wrap;
   }
 }
+
+
+/* Vigilus real brand + print-ready pass */
+.vigilus-logo-lockup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vigilus-logo-lockup img {
+  width: 74px;
+  height: 62px;
+  object-fit: contain;
+}
+
+.vigilus-logo-lockup small {
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.admin-brand-real {
+  gap: 12px;
+}
+
+.admin-brand-real img {
+  width: 52px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.admin-brand-real small {
+  margin: 0;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.profile-brand-real {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.profile-brand-real .profile-brand-logo {
+  width: 68px;
+  height: 56px;
+  flex: 0 0 auto;
+}
+
+.profile-brand-real > small {
+  margin: 0;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.print-brand-summary img {
+  width: 38px;
+  height: 32px;
+  margin-left: 6px;
+  object-fit: contain;
+}
+
+.card-mockup-stage {
+  min-height: 470px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 22px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 22% 20%, rgba(19,163,227,.16), transparent 22rem),
+    linear-gradient(145deg, #eaf2f6 0%, #f8fbfd 48%, #e5edf2 100%);
+  perspective: 1400px;
+}
+
+.card-mockup-stage::before {
+  content: "";
+  position: absolute;
+  inset: auto 8% 32px;
+  height: 66px;
+  border-radius: 50%;
+  background: rgba(18, 33, 47, .16);
+  filter: blur(28px);
+}
+
+.card-mockup {
+  position: absolute;
+  width: min(48vw, 510px);
+  aspect-ratio: 85.6 / 54;
+  border-radius: 20px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 30px 70px rgba(18, 33, 47, .22);
+  transform-style: preserve-3d;
+}
+
+.card-mockup img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-mockup-front {
+  left: 8%;
+  top: 58px;
+  transform: rotateX(8deg) rotateY(18deg) rotateZ(-5deg);
+}
+
+.card-mockup-back {
+  right: 8%;
+  top: 126px;
+  transform: rotateX(9deg) rotateY(-18deg) rotateZ(6deg);
+}
+
+.mockup-caption {
+  position: absolute;
+  left: 28px;
+  bottom: 24px;
+  z-index: 3;
+}
+
+.mockup-caption span,
+.mockup-caption strong {
+  display: block;
+}
+
+.mockup-caption span {
+  margin-bottom: 5px;
+  color: var(--vigilus-blue);
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.mockup-caption strong {
+  font-size: .86rem;
+}
+
+.print-specs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.print-specs article {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+}
+
+.print-specs span,
+.print-specs strong {
+  display: block;
+}
+
+.print-specs span {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.print-specs strong {
+  font-size: .92rem;
+}
+
+@media (max-width: 900px) {
+  .card-mockup-stage {
+    min-height: 390px;
+  }
+
+  .card-mockup {
+    width: 58vw;
+  }
+
+  .card-mockup-front {
+    left: 4%;
+  }
+
+  .card-mockup-back {
+    right: 4%;
+  }
+
+  .print-specs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .vigilus-logo-lockup img {
+    width: 64px;
+    height: 54px;
+  }
+
+  .admin-brand-real img {
+    width: 46px;
+    height: 38px;
+  }
+
+  .profile-brand-real .profile-brand-logo {
+    width: 58px;
+    height: 48px;
+  }
+
+  .card-mockup-stage {
+    min-height: 330px;
+    border-radius: 20px;
+  }
+
+  .card-mockup {
+    width: 72vw;
+    border-radius: 14px;
+  }
+
+  .card-mockup-front {
+    left: -5%;
+    top: 48px;
+  }
+
+  .card-mockup-back {
+    right: -5%;
+    top: 118px;
+  }
+
+  .mockup-caption {
+    left: 18px;
+    bottom: 16px;
+  }
+
+  .print-specs {
+    grid-template-columns: 1fr 1fr;
+  }
+}

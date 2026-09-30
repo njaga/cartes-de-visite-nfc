@@ -29,9 +29,9 @@ export default async function AdminDashboardPage() {
   return (
     <main className="admin-shell">
       <header className="admin-topbar">
-        <div className="admin-brand">
-          <span className="brand-mark brand-mark-small">V</span>
-          <div><strong>VIGILUS</strong><small>Digital Cards</small></div>
+        <div className="admin-brand admin-brand-real">
+          <img src="/branding/vigilus-logo.png" alt="Vigilus" />
+          <small>Digital Cards</small>
         </div>
         <div className="admin-user">
           <span>{admin.email}</span>

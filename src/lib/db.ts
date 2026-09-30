@@ -4,7 +4,7 @@ import path from "node:path";
 import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 import { seedProfiles } from "@/lib/profiles";
 import type { BrandConfig } from "@/lib/brands";
-import { defaultBrandConfigs, defaultBrandFor } from "@/lib/brands";
+import { defaultBrandConfigs, defaultBrandFor, VIGILUS_LOGO_URL } from "@/lib/brands";
 
 type CardRow = {
   id: number;
@@ -198,7 +198,7 @@ function rowToBrand(row: BrandRow | undefined): BrandConfig | undefined {
     subsidiary: row.subsidiary,
     primaryColor: row.primary_color,
     accentColor: row.accent_color,
-    logoUrl: row.logo_url ?? undefined
+    logoUrl: row.logo_url || VIGILUS_LOGO_URL
   };
 }
 

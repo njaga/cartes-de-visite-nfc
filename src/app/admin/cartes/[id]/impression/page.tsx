@@ -22,19 +22,38 @@ export default async function PrintCardPage({ params }: PrintPageProps) {
         <div className="admin-page-heading">
           <div>
             <a className="admin-back" href={"/admin/cartes/" + card.id}>← Retour à la fiche</a>
-            <span>Impression</span>
-            <h1>Carte physique</h1>
-            <p>Format ISO ID-1 : 85,6 × 54 mm. Recto et verso utilisent l’identité de {card.subsidiary}.</p>
+            <span>BAT & impression</span>
+            <h1>Carte physique NFC</h1>
+            <p>Format fini 85,6 × 54 mm. Export PDF avec 3 mm de fond perdu et repères de coupe.</p>
           </div>
-          <a className="admin-secondary-button" href="/admin/filiales">Modifier l’identité de la filiale</a>
+          <div className="admin-heading-actions">
+            <a className="admin-secondary-button" href="/admin/filiales">Identité de la filiale</a>
+            <a className="admin-primary-button" href={"/api/card-print/" + card.id}>
+              Télécharger le PDF imprimeur
+            </a>
+          </div>
         </div>
 
         <div className="print-brand-summary">
           <span style={{ background: brand.primaryColor }} />
           <span style={{ background: brand.accentColor }} />
+          {brand.logoUrl && <img src={brand.logoUrl} alt="" />}
           <strong>{card.firstName} {card.lastName}</strong>
           <small>{card.jobTitle}</small>
         </div>
+
+        <section className="card-mockup-stage" aria-label="Aperçu réaliste de la carte">
+          <div className="card-mockup card-mockup-front">
+            <img src={"/api/card-artwork/" + card.id + "?side=front"} alt="Aperçu recto" />
+          </div>
+          <div className="card-mockup card-mockup-back">
+            <img src={"/api/card-artwork/" + card.id + "?side=back"} alt="Aperçu verso" />
+          </div>
+          <div className="mockup-caption">
+            <span>Aperçu</span>
+            <strong>PVC · format carte bancaire · recto/verso</strong>
+          </div>
+        </section>
 
         <div className="artwork-grid">
           <article className="artwork-panel">
@@ -58,11 +77,31 @@ export default async function PrintCardPage({ params }: PrintPageProps) {
           </article>
         </div>
 
+        <section className="print-specs">
+          <article>
+            <span>Format fini</span>
+            <strong>85,6 × 54 mm</strong>
+          </article>
+          <article>
+            <span>Fond perdu PDF</span>
+            <strong>3 mm</strong>
+          </article>
+          <article>
+            <span>Pages</span>
+            <strong>2 · recto/verso</strong>
+          </article>
+          <article>
+            <span>QR code</span>
+            <strong>Vectoriel</strong>
+          </article>
+        </section>
+
         <section className="print-note">
-          <strong>Pour l’imprimeur</strong>
+          <strong>BAT imprimeur</strong>
           <p>
-            Les fichiers SVG sont vectoriels au format fini 85,6 × 54 mm. L’imprimeur peut ajouter
-            son fond perdu selon son procédé. Faites toujours un BAT avant impression en série.
+            Le PDF contient deux pages au format 91,6 × 60 mm, soit le format fini avec 3 mm de
+            fond perdu sur chaque côté. Les repères de coupe indiquent le format final 85,6 × 54 mm.
+            Faites valider un BAT physique avant une impression en série.
           </p>
         </section>
       </section>

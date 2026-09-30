@@ -1,6 +1,9 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import QRCode from "qrcode";
 import { getAdminUser } from "@/lib/admin-auth";
 import { getBrandConfig, getCardById } from "@/lib/db";
+import { contentTypeForFile, uploadsDirectory } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -21,6 +24,31 @@ function truncate(value: string, max: number) {
   return value.length <= max ? value : value.slice(0, max - 1) + "…";
 }
 
+async function embeddedAsset(url: string | undefined, origin: string) {
+  if (!url) return undefined;
+
+  try {
+    if (url.startsWith("/branding/")) {
+      const filename = path.basename(url);
+      const bytes = await readFile(path.join(process.cwd(), "public", "branding", filename));
+      const type = contentTypeForFile(filename) || "image/png";
+      return "data:" + type + ";base64," + bytes.toString("base64");
+    }
+
+    if (url.startsWith("/uploads/")) {
+      const filename = path.basename(url);
+      const bytes = await readFile(path.join(uploadsDirectory(), filename));
+      const type = contentTypeForFile(filename);
+      if (!type) return origin + url;
+      return "data:" + type + ";base64," + bytes.toString("base64");
+    }
+  } catch {
+    return origin + url;
+  }
+
+  return url.startsWith("/") ? origin + url : url;
+}
+
 function qrRects(value: string, x: number, y: number, sizePx: number) {
   const qr = QRCode.create(value, { errorCorrectionLevel: "M" });
   const count = qr.modules.size;
@@ -32,22 +60,13 @@ function qrRects(value: string, x: number, y: number, sizePx: number) {
       if (qr.modules.data[row * count + col]) {
         parts.push(
           '<rect x="' + (x + col * cell).toFixed(2) + '" y="' + (y + row * cell).toFixed(2) +
-          '" width="' + Math.ceil(cell * 100) / 100 + '" height="' + Math.ceil(cell * 100) / 100 + '" />'
+          '" width="' + (cell + 0.08).toFixed(2) + '" height="' + (cell + 0.08).toFixed(2) + '" />'
         );
       }
     }
   }
 
   return parts.join("");
-}
-
-function logoMarkup(logoUrl: string | undefined, origin: string) {
-  if (!logoUrl) {
-    return '<text x="62" y="86" font-family="Arial,sans-serif" font-size="30" font-weight="800" letter-spacing="3">VIGILUS</text>';
-  }
-
-  const href = logoUrl.startsWith("/") ? origin + logoUrl : logoUrl;
-  return '<image href="' + xml(href) + '" x="62" y="46" width="190" height="62" preserveAspectRatio="xMinYMid meet" />';
 }
 
 function frontSvg(args: {
@@ -57,61 +76,76 @@ function frontSvg(args: {
   mobile?: string;
   email: string;
   website: string;
-  photoUrl?: string;
+  photoHref?: string;
   primary: string;
   accent: string;
-  logoUrl?: string;
-  origin: string;
+  logoHref: string;
 }) {
-  const photoHref = args.photoUrl
-    ? args.photoUrl.startsWith("/") ? args.origin + args.photoUrl : args.photoUrl
-    : "";
+  const initials = args.fullName
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0] || "")
+    .slice(0, 2)
+    .join("");
+
+  const photo = args.photoHref
+    ? [
+        '<circle cx="704" cy="214" r="101" fill="#f4f8fa"/>',
+        '<circle cx="704" cy="214" r="94" fill="#ffffff"/>',
+        '<clipPath id="photoClip"><circle cx="704" cy="214" r="88"/></clipPath>',
+        '<image href="' + xml(args.photoHref) + '" x="616" y="126" width="176" height="176" preserveAspectRatio="xMidYMid slice" clip-path="url(#photoClip)"/>'
+      ].join("")
+    : [
+        '<circle cx="704" cy="214" r="94" fill="' + xml(args.primary) + '" opacity=".08"/>',
+        '<text x="704" y="231" text-anchor="middle" font-family="Arial,sans-serif" font-size="52" font-weight="800" fill="' + xml(args.primary) + '">' + xml(initials) + '</text>'
+      ].join("");
 
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" width="85.6mm" height="54mm" viewBox="0 0 856 540">',
-    '<defs><clipPath id="photoClip"><circle cx="705" cy="205" r="88"/></clipPath></defs>',
-    '<rect width="856" height="540" rx="24" fill="#ffffff"/>',
-    '<rect x="0" y="0" width="12" height="540" fill="' + xml(args.primary) + '"/>',
-    '<rect x="12" y="0" width="5" height="540" fill="' + xml(args.accent) + '"/>',
-    logoMarkup(args.logoUrl, args.origin),
-    '<text x="62" y="177" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="' + xml(args.primary) + '" letter-spacing="1.4">' + xml(args.subsidiary.toUpperCase()) + '</text>',
-    '<text x="62" y="237" font-family="Arial,sans-serif" font-size="39" font-weight="800" fill="#12212f">' + xml(truncate(args.fullName, 27)) + '</text>',
-    '<text x="62" y="275" font-family="Arial,sans-serif" font-size="19" font-weight="600" fill="#667585">' + xml(truncate(args.jobTitle, 43)) + '</text>',
-    args.photoUrl
-      ? '<circle cx="705" cy="205" r="94" fill="#f1f6f9"/><image href="' + xml(photoHref) + '" x="617" y="117" width="176" height="176" preserveAspectRatio="xMidYMid slice" clip-path="url(#photoClip)"/>'
-      : '<circle cx="705" cy="205" r="88" fill="' + xml(args.primary) + '" opacity=".10"/><text x="705" y="220" text-anchor="middle" font-family="Arial,sans-serif" font-size="50" font-weight="800" fill="' + xml(args.primary) + '">' + xml(args.fullName.split(" ").map((part) => part[0] || "").slice(0,2).join("")) + '</text>',
-    '<line x1="62" y1="343" x2="794" y2="343" stroke="#e5edf2"/>',
-    args.mobile ? '<text x="62" y="391" font-family="Arial,sans-serif" font-size="16" fill="#536574">T. ' + xml(args.mobile) + '</text>' : '',
-    '<text x="62" y="427" font-family="Arial,sans-serif" font-size="16" fill="#536574">' + xml(args.email) + '</text>',
-    '<text x="62" y="463" font-family="Arial,sans-serif" font-size="16" fill="#536574">' + xml(args.website.replace(/^https?:\/\//, "")) + '</text>',
-    '<rect x="674" y="476" width="42" height="5" rx="2.5" fill="' + xml(args.accent) + '"/>',
-    '<rect x="716" y="476" width="42" height="5" rx="2.5" fill="#dfe7ec"/>',
-    '<rect x="758" y="476" width="42" height="5" rx="2.5" fill="' + xml(args.primary) + '"/>',
+    '<rect width="856" height="540" fill="#ffffff"/>',
+    '<path d="M650 0H856V540H785C745 458 720 396 697 328C673 257 666 176 650 0Z" fill="' + xml(args.primary) + '" opacity=".055"/>',
+    '<rect x="0" y="0" width="10" height="540" fill="' + xml(args.primary) + '"/>',
+    '<rect x="10" y="0" width="4" height="540" fill="' + xml(args.accent) + '"/>',
+    '<image href="' + xml(args.logoHref) + '" x="54" y="42" width="128" height="108" preserveAspectRatio="xMinYMid meet"/>',
+    '<text x="54" y="181" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="' + xml(args.primary) + '" letter-spacing="1.5">' + xml(args.subsidiary.toUpperCase()) + '</text>',
+    '<text x="54" y="250" font-family="Arial,sans-serif" font-size="41" font-weight="800" fill="#102230">' + xml(truncate(args.fullName, 27)) + '</text>',
+    '<text x="54" y="290" font-family="Arial,sans-serif" font-size="18" font-weight="600" fill="#657786">' + xml(truncate(args.jobTitle, 44)) + '</text>',
+    photo,
+    '<line x1="54" y1="351" x2="802" y2="351" stroke="#e5edf2"/>',
+    args.mobile ? '<text x="54" y="398" font-family="Arial,sans-serif" font-size="15" fill="#4c6170">T. ' + xml(args.mobile) + '</text>' : '',
+    '<text x="54" y="433" font-family="Arial,sans-serif" font-size="15" fill="#4c6170">' + xml(args.email) + '</text>',
+    '<text x="54" y="468" font-family="Arial,sans-serif" font-size="15" fill="#4c6170">' + xml(args.website.replace(/^https?:\/\//, "")) + '</text>',
+    '<rect x="676" y="485" width="40" height="5" rx="2.5" fill="' + xml(args.accent) + '"/>',
+    '<rect x="716" y="485" width="40" height="5" rx="2.5" fill="#dce5eb"/>',
+    '<rect x="756" y="485" width="40" height="5" rx="2.5" fill="' + xml(args.primary) + '"/>',
     '</svg>'
   ].join("");
 }
 
 function backSvg(args: {
   fullName: string;
+  subsidiary: string;
   tokenUrl: string;
   primary: string;
   accent: string;
-  logoUrl?: string;
-  origin: string;
+  logoHref: string;
 }) {
-  const qr = qrRects(args.tokenUrl + "?src=qr", 516, 128, 230);
+  const qr = qrRects(args.tokenUrl + "?src=qr", 532, 135, 214);
 
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" width="85.6mm" height="54mm" viewBox="0 0 856 540">',
-    '<rect width="856" height="540" rx="24" fill="#ffffff"/>',
-    '<circle cx="145" cy="188" r="62" fill="' + xml(args.primary) + '" opacity=".09"/>',
-    '<path d="M125 188a20 20 0 0 1 40 0M110 188a35 35 0 0 1 70 0M95 188a50 50 0 0 1 100 0" fill="none" stroke="' + xml(args.primary) + '" stroke-width="9" stroke-linecap="round"/>',
-    '<text x="62" y="302" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="#12212f">Approchez votre téléphone</text>',
-    '<text x="62" y="342" font-family="Arial,sans-serif" font-size="18" fill="#667585">ou scannez le QR code pour enregistrer le contact.</text>',
-    '<text x="62" y="405" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="' + xml(args.primary) + '">' + xml(truncate(args.fullName, 36)) + '</text>',
-    '<rect x="486" y="98" width="290" height="290" rx="26" fill="#f7fafc"/>',
-    '<g fill="#12212f">' + qr + '</g>',
-    '<text x="631" y="423" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" fill="#7d8c98">NFC + QR</text>',
+    '<rect width="856" height="540" fill="#ffffff"/>',
+    '<rect x="0" y="0" width="856" height="10" fill="' + xml(args.primary) + '"/>',
+    '<image href="' + xml(args.logoHref) + '" x="54" y="48" width="112" height="94" preserveAspectRatio="xMinYMid meet"/>',
+    '<circle cx="129" cy="224" r="58" fill="' + xml(args.primary) + '" opacity=".08"/>',
+    '<path d="M108 224a21 21 0 0 1 42 0M92 224a37 37 0 0 1 74 0M76 224a53 53 0 0 1 106 0" fill="none" stroke="' + xml(args.primary) + '" stroke-width="8" stroke-linecap="round"/>',
+    '<text x="54" y="332" font-family="Arial,sans-serif" font-size="29" font-weight="800" fill="#102230">Approchez votre téléphone</text>',
+    '<text x="54" y="373" font-family="Arial,sans-serif" font-size="17" fill="#657786">ou scannez le QR code pour ouvrir la carte digitale.</text>',
+    '<text x="54" y="426" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="' + xml(args.primary) + '">' + xml(truncate(args.fullName, 36)) + '</text>',
+    '<text x="54" y="452" font-family="Arial,sans-serif" font-size="13" fill="#7d8c98">' + xml(args.subsidiary) + '</text>',
+    '<rect x="500" y="103" width="278" height="278" rx="24" fill="#f7fafc" stroke="#e5edf2"/>',
+    '<g fill="#102230">' + qr + '</g>',
+    '<text x="639" y="414" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#7d8c98">NFC + QR</text>',
     '<rect x="0" y="506" width="285.3" height="34" fill="' + xml(args.accent) + '"/>',
     '<rect x="285.3" y="506" width="285.3" height="34" fill="#ffffff"/>',
     '<rect x="570.6" y="506" width="285.4" height="34" fill="' + xml(args.primary) + '"/>',
@@ -133,6 +167,13 @@ export async function GET(request: Request, context: RouteContext) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || requestUrl.origin;
   const nfcUrl = origin + "/n/" + card.nfcToken;
 
+  const logoHref = await embeddedAsset(brand.logoUrl || "/branding/vigilus-logo.png", origin);
+  const photoHref = await embeddedAsset(card.photoUrl, origin);
+
+  if (!logoHref) {
+    return new Response("Logo introuvable", { status: 500 });
+  }
+
   const svg = side === "front"
     ? frontSvg({
         fullName: card.firstName + " " + card.lastName,
@@ -141,19 +182,18 @@ export async function GET(request: Request, context: RouteContext) {
         mobile: card.mobile,
         email: card.email,
         website: card.website,
-        photoUrl: card.photoUrl,
+        photoHref,
         primary: brand.primaryColor,
         accent: brand.accentColor,
-        logoUrl: brand.logoUrl,
-        origin
+        logoHref
       })
     : backSvg({
         fullName: card.firstName + " " + card.lastName,
+        subsidiary: card.subsidiary,
         tokenUrl: nfcUrl,
         primary: brand.primaryColor,
         accent: brand.accentColor,
-        logoUrl: brand.logoUrl,
-        origin
+        logoHref
       });
 
   const headers = new Headers({
