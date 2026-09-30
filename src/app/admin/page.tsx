@@ -10,7 +10,7 @@ function formatScanDate(value: string) {
     dateStyle: "short",
     timeStyle: "short",
     timeZone: "Africa/Dakar"
-  }).format(new Date(value.replace(" ", "T") + "Z"));
+  }).format(new Date(value));
 }
 
 function nfcStatusLabel(status: string | undefined) {
@@ -21,10 +21,12 @@ function nfcStatusLabel(status: string | undefined) {
 
 export default async function AdminDashboardPage() {
   const admin = await requireAdmin();
-  const cards = getAllProfiles({ includeInactive: true });
-  const stats = getDashboardStats();
-  const recentScans = getRecentScans(10);
-  const topCards = getTopCards(5);
+  const [cards, stats, recentScans, topCards] = await Promise.all([
+    getAllProfiles({ includeInactive: true }),
+    getDashboardStats(),
+    getRecentScans(10),
+    getTopCards(5)
+  ]);
 
   return (
     <main className="admin-shell">

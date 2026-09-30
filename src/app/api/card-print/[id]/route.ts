@@ -10,7 +10,7 @@ import {
 } from "@cantoo/pdf-lib";
 import { getAdminUser } from "@/lib/admin-auth";
 import { getBrandConfig, getCardById } from "@/lib/db";
-import { uploadsDirectory } from "@/lib/uploads";
+import { getUploadedImage } from "@/lib/uploads";
 import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
@@ -96,10 +96,10 @@ async function embedBrandLogo(document: PDFDocument, logoUrl?: string) {
 
     if (source.startsWith("/uploads/")) {
       const filename = path.basename(source);
-      const bytes = await readFile(path.join(uploadsDirectory(), filename));
-      const extension = path.extname(filename).toLowerCase();
-      if (extension === ".jpg" || extension === ".jpeg") return document.embedJpg(bytes);
-      if (extension === ".png") return document.embedPng(bytes);
+      const asset = await getUploadedImage(filename);
+      if (!asset) throw new Error("Logo uploadé introuvable");
+      if (asset.contentType === "image/jpeg") return document.embedJpg(asset.bytes);
+      if (asset.contentType === "image/png") return document.embedPng(asset.bytes);
     }
   } catch {
     // Fallback below.
@@ -115,13 +115,13 @@ async function embedLocalPhoto(document: PDFDocument, photoUrl?: string) {
   if (!photoUrl?.startsWith("/uploads/")) return undefined;
 
   const filename = path.basename(photoUrl);
-  const extension = path.extname(filename).toLowerCase();
-
-  if (![".png", ".jpg", ".jpeg"].includes(extension)) return undefined;
 
   try {
-    const bytes = await readFile(path.join(uploadsDirectory(), filename));
-    return extension === ".png" ? document.embedPng(bytes) : document.embedJpg(bytes);
+    const asset = await getUploadedImage(filename);
+    if (!asset) return undefined;
+    if (asset.contentType === "image/png") return document.embedPng(asset.bytes);
+    if (asset.contentType === "image/jpeg") return document.embedJpg(asset.bytes);
+    return undefined;
   } catch {
     return undefined;
   }
@@ -142,10 +142,10 @@ export async function GET(request: Request, context: RouteContext) {
   if (!admin) return new Response("Non autorisé", { status: 401 });
 
   const { id } = await context.params;
-  const card = getCardById(Number(id));
+  const card = await getCardById(Number(id));
   if (!card) return new Response("Carte introuvable", { status: 404 });
 
-  const brand = getBrandConfig(card.subsidiary);
+  const brand = await getBrandConfig(card.subsidiary);
   const origin = getPublicSiteUrl();
   const nfcUrl = origin + "/n/" + card.nfcToken;
 

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function SubsidiariesPage({ searchParams }: SubsidiariesPageProps) {
   await requireAdmin();
   const { saved } = await searchParams;
-  const brands = getAllBrandConfigs();
+  const brands = await getAllBrandConfigs();
 
   return (
     <main className="admin-shell">

@@ -3,7 +3,7 @@ import path from "node:path";
 import QRCode from "qrcode";
 import { getAdminUser } from "@/lib/admin-auth";
 import { getBrandConfig, getCardById } from "@/lib/db";
-import { contentTypeForFile, uploadsDirectory } from "@/lib/uploads";
+import { contentTypeForFile, getUploadedImage } from "@/lib/uploads";
 import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const runtime = "nodejs";
@@ -38,10 +38,9 @@ async function embeddedAsset(url: string | undefined, origin: string) {
 
     if (url.startsWith("/uploads/")) {
       const filename = path.basename(url);
-      const bytes = await readFile(path.join(uploadsDirectory(), filename));
-      const type = contentTypeForFile(filename);
-      if (!type) return origin + url;
-      return "data:" + type + ";base64," + bytes.toString("base64");
+      const asset = await getUploadedImage(filename);
+      if (!asset) return origin + url;
+      return "data:" + asset.contentType + ";base64," + asset.bytes.toString("base64");
     }
   } catch {
     return origin + url;
@@ -159,10 +158,10 @@ export async function GET(request: Request, context: RouteContext) {
   if (!admin) return new Response("Non autorisé", { status: 401 });
 
   const { id } = await context.params;
-  const card = getCardById(Number(id));
+  const card = await getCardById(Number(id));
   if (!card) return new Response("Carte introuvable", { status: 404 });
 
-  const brand = getBrandConfig(card.subsidiary);
+  const brand = await getBrandConfig(card.subsidiary);
   const requestUrl = new URL(request.url);
   const side = requestUrl.searchParams.get("side") === "back" ? "back" : "front";
   const origin = getPublicSiteUrl();

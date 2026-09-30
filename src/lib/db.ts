@@ -1,6 +1,4 @@
-import Database from "better-sqlite3";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
+import { neon } from "@neondatabase/serverless";
 import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 import { seedProfiles } from "@/lib/profiles";
 import type { BrandConfig } from "@/lib/brands";
@@ -12,9 +10,9 @@ type CardRow = {
   nfc_token: string;
   nfc_mode: "profile" | "vcard";
   nfc_status: NfcProvisioningStatus;
-  programmed_at: string | null;
-  tested_at: string | null;
-  active: number;
+  programmed_at: string | Date | null;
+  tested_at: string | Date | null;
+  active: boolean;
   first_name: string;
   last_name: string;
   job_title: string;
@@ -30,9 +28,9 @@ type CardRow = {
   country: string;
   presentation: string | null;
   photo_url: string | null;
-  social_links: string | null;
-  created_at: string;
-  updated_at: string;
+  social_links: SocialLink[] | string | null;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type BrandRow = {
@@ -42,123 +40,48 @@ type BrandRow = {
   logo_url: string | null;
 };
 
-const globalForDb = globalThis as unknown as {
-  vigilusCardsDb?: Database.Database;
+export type MediaAsset = {
+  filename: string;
+  mimeType: string;
+  dataBase64: string;
 };
 
-function databasePath() {
-  const customPath = process.env.DB_PATH?.trim();
-  if (customPath) return path.resolve(customPath);
-  return path.join(process.cwd(), "data", "vigilus-cards.db");
+const globalForDb = globalThis as unknown as {
+  vigilusSql?: ReturnType<typeof neon>;
+  vigilusSchemaPromise?: Promise<void>;
+};
+
+function connectionString() {
+  const value = process.env.DATABASE_URL?.trim();
+  if (!value) {
+    throw new Error(
+      "DATABASE_URL est absente. Connectez une base Neon PostgreSQL au projet Vercel."
+    );
+  }
+  return value;
 }
 
-function ensureColumn(database: Database.Database, name: string, definition: string) {
-  const columns = database.prepare("PRAGMA table_info(cards)").all() as Array<{ name: string }>;
-  if (!columns.some((column) => column.name === name)) {
-    database.exec("ALTER TABLE cards ADD COLUMN " + name + " " + definition);
+function sql() {
+  if (!globalForDb.vigilusSql) {
+    globalForDb.vigilusSql = neon(connectionString());
   }
+  return globalForDb.vigilusSql;
 }
 
-function initializeDatabase() {
-  const filePath = databasePath();
-  mkdirSync(path.dirname(filePath), { recursive: true });
-
-  const database = new Database(filePath);
-  database.pragma("journal_mode = WAL");
-  database.pragma("foreign_keys = ON");
-
-  database.exec([
-    "CREATE TABLE IF NOT EXISTS cards (",
-    "id INTEGER PRIMARY KEY AUTOINCREMENT,",
-    "slug TEXT NOT NULL UNIQUE,",
-    "nfc_token TEXT NOT NULL UNIQUE,",
-    "nfc_mode TEXT NOT NULL DEFAULT 'profile' CHECK (nfc_mode IN ('profile', 'vcard')),",
-    "nfc_status TEXT NOT NULL DEFAULT 'new',",
-    "programmed_at TEXT, tested_at TEXT,",
-    "active INTEGER NOT NULL DEFAULT 1,",
-    "first_name TEXT NOT NULL, last_name TEXT NOT NULL, job_title TEXT NOT NULL,",
-    "subsidiary TEXT NOT NULL, company TEXT NOT NULL, mobile TEXT, whatsapp TEXT, phone TEXT,",
-    "email TEXT NOT NULL, website TEXT NOT NULL, address TEXT NOT NULL,",
-    "city TEXT NOT NULL, country TEXT NOT NULL, presentation TEXT, photo_url TEXT,",
-    "social_links TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,",
-    "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP",
-    ");",
-    "CREATE TABLE IF NOT EXISTS scans (",
-    "id INTEGER PRIMARY KEY AUTOINCREMENT, card_id INTEGER NOT NULL,",
-    "source TEXT NOT NULL DEFAULT 'nfc', user_agent TEXT, referer TEXT,",
-    "scanned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,",
-    "FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE",
-    ");",
-    "CREATE TABLE IF NOT EXISTS brand_configs (",
-    "subsidiary TEXT PRIMARY KEY,",
-    "primary_color TEXT NOT NULL,",
-    "accent_color TEXT NOT NULL,",
-    "logo_url TEXT",
-    ");",
-    "CREATE INDEX IF NOT EXISTS idx_scans_card_id ON scans(card_id);",
-    "CREATE INDEX IF NOT EXISTS idx_scans_scanned_at ON scans(scanned_at);",
-    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_email_unique ON cards(lower(email));"
-  ].join("\n"));
-
-  ensureColumn(database, "nfc_status", "TEXT NOT NULL DEFAULT 'new'");
-  ensureColumn(database, "programmed_at", "TEXT");
-  ensureColumn(database, "tested_at", "TEXT");
-  ensureColumn(database, "whatsapp", "TEXT");
-
-  const brandInsert = database.prepare(
-    "INSERT OR IGNORE INTO brand_configs (subsidiary,primary_color,accent_color,logo_url) VALUES (?,?,?,?)"
-  );
-  for (const brand of defaultBrandConfigs) {
-    brandInsert.run(brand.subsidiary, brand.primaryColor, brand.accentColor, brand.logoUrl ?? null);
-  }
-
-  const migrateLegacyBrandLogo = database.prepare(
-    "UPDATE brand_configs SET logo_url=? WHERE subsidiary=? AND (logo_url IS NULL OR logo_url='' OR logo_url='/branding/vigilus-logo.png')"
-  );
-  for (const brand of defaultBrandConfigs) {
-    migrateLegacyBrandLogo.run(brand.logoUrl ?? null, brand.subsidiary);
-  }
-
-  const count = database.prepare("SELECT COUNT(*) AS count FROM cards").get() as { count: number };
-  if (count.count === 0) {
-    const insert = database.prepare([
-      "INSERT INTO cards (slug,nfc_token,nfc_mode,nfc_status,active,first_name,last_name,job_title,",
-      "subsidiary,company,mobile,whatsapp,phone,email,website,address,city,country,presentation,photo_url,social_links)",
-      "VALUES (@slug,@nfcToken,@nfcMode,@nfcStatus,@active,@firstName,@lastName,@jobTitle,@subsidiary,@company,",
-      "@mobile,@whatsapp,@phone,@email,@website,@address,@city,@country,@presentation,@photoUrl,@socialLinks)"
-    ].join(" "));
-
-    const seed = database.transaction((profiles: DigitalCard[]) => {
-      for (const profile of profiles) {
-        insert.run({
-          ...profile,
-          nfcStatus: profile.nfcStatus ?? "new",
-          active: profile.active ? 1 : 0,
-          mobile: profile.mobile ?? null,
-          whatsapp: profile.whatsapp ?? null,
-          phone: profile.phone ?? null,
-          presentation: profile.presentation ?? null,
-          photoUrl: profile.photoUrl ?? null,
-          socialLinks: JSON.stringify(profile.socialLinks ?? [])
-        });
-      }
-    });
-
-    seed(seedProfiles);
-  }
-
-  return database;
+async function query<T>(text: string, params: unknown[] = []) {
+  const rows = await sql().query(text, params);
+  return rows as unknown as T[];
 }
 
-function db() {
-  if (!globalForDb.vigilusCardsDb) {
-    globalForDb.vigilusCardsDb = initializeDatabase();
-  }
-  return globalForDb.vigilusCardsDb;
+function dateValue(value: string | Date | null | undefined) {
+  if (!value) return undefined;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
 }
 
-function parseSocialLinks(value: string | null): SocialLink[] {
+function parseSocialLinks(value: SocialLink[] | string | null): SocialLink[] {
   if (!value) return [];
+  if (Array.isArray(value)) return value;
   try {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed : [];
@@ -170,13 +93,13 @@ function parseSocialLinks(value: string | null): SocialLink[] {
 function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
   if (!row) return undefined;
   return {
-    id: row.id,
+    id: Number(row.id),
     slug: row.slug,
     nfcToken: row.nfc_token,
     nfcMode: row.nfc_mode,
     nfcStatus: row.nfc_status || "new",
-    programmedAt: row.programmed_at ?? undefined,
-    testedAt: row.tested_at ?? undefined,
+    programmedAt: dateValue(row.programmed_at),
+    testedAt: dateValue(row.tested_at),
     active: Boolean(row.active),
     firstName: row.first_name,
     lastName: row.last_name,
@@ -194,8 +117,8 @@ function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
     presentation: row.presentation ?? undefined,
     photoUrl: row.photo_url ?? undefined,
     socialLinks: parseSocialLinks(row.social_links),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    createdAt: dateValue(row.created_at),
+    updatedAt: dateValue(row.updated_at)
   };
 }
 
@@ -209,189 +132,411 @@ function rowToBrand(row: BrandRow | undefined): BrandConfig | undefined {
   };
 }
 
-export function getAllProfiles(options?: { includeInactive?: boolean }) {
-  const where = options?.includeInactive ? "" : "WHERE active = 1";
-  const rows = db().prepare("SELECT * FROM cards " + where + " ORDER BY first_name,last_name").all() as CardRow[];
+async function initializeDatabase() {
+  await query(
+    "CREATE TABLE IF NOT EXISTS cards (" +
+      "id SERIAL PRIMARY KEY," +
+      "slug TEXT NOT NULL UNIQUE," +
+      "nfc_token TEXT NOT NULL UNIQUE," +
+      "nfc_mode TEXT NOT NULL DEFAULT 'profile' CHECK (nfc_mode IN ('profile','vcard'))," +
+      "nfc_status TEXT NOT NULL DEFAULT 'new' CHECK (nfc_status IN ('new','programmed','tested'))," +
+      "programmed_at TIMESTAMPTZ," +
+      "tested_at TIMESTAMPTZ," +
+      "active BOOLEAN NOT NULL DEFAULT TRUE," +
+      "first_name TEXT NOT NULL," +
+      "last_name TEXT NOT NULL," +
+      "job_title TEXT NOT NULL," +
+      "subsidiary TEXT NOT NULL," +
+      "company TEXT NOT NULL," +
+      "mobile TEXT," +
+      "whatsapp TEXT," +
+      "phone TEXT," +
+      "email TEXT NOT NULL," +
+      "website TEXT NOT NULL," +
+      "address TEXT NOT NULL," +
+      "city TEXT NOT NULL," +
+      "country TEXT NOT NULL," +
+      "presentation TEXT," +
+      "photo_url TEXT," +
+      "social_links JSONB NOT NULL DEFAULT '[]'::jsonb," +
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()," +
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()" +
+    ")"
+  );
+
+  await query(
+    "CREATE TABLE IF NOT EXISTS scans (" +
+      "id SERIAL PRIMARY KEY," +
+      "card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE," +
+      "source TEXT NOT NULL DEFAULT 'nfc' CHECK (source IN ('nfc','qr'))," +
+      "user_agent TEXT," +
+      "referer TEXT," +
+      "scanned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()" +
+    ")"
+  );
+
+  await query(
+    "CREATE TABLE IF NOT EXISTS brand_configs (" +
+      "subsidiary TEXT PRIMARY KEY," +
+      "primary_color TEXT NOT NULL," +
+      "accent_color TEXT NOT NULL," +
+      "logo_url TEXT" +
+    ")"
+  );
+
+  await query(
+    "CREATE TABLE IF NOT EXISTS media_assets (" +
+      "filename TEXT PRIMARY KEY," +
+      "mime_type TEXT NOT NULL," +
+      "data_base64 TEXT NOT NULL," +
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()" +
+    ")"
+  );
+
+  await query("CREATE INDEX IF NOT EXISTS idx_scans_card_id ON scans(card_id)");
+  await query("CREATE INDEX IF NOT EXISTS idx_scans_scanned_at ON scans(scanned_at)");
+  await query("CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_email_unique ON cards(lower(email))");
+
+  for (const brand of defaultBrandConfigs) {
+    await query(
+      "INSERT INTO brand_configs (subsidiary,primary_color,accent_color,logo_url) " +
+      "VALUES ($1,$2,$3,$4) ON CONFLICT (subsidiary) DO NOTHING",
+      [brand.subsidiary, brand.primaryColor, brand.accentColor, brand.logoUrl ?? null]
+    );
+
+    await query(
+      "UPDATE brand_configs SET logo_url=$1 WHERE subsidiary=$2 " +
+      "AND (logo_url IS NULL OR logo_url='' OR logo_url='/branding/vigilus-logo.png')",
+      [brand.logoUrl ?? null, brand.subsidiary]
+    );
+  }
+
+  const countRows = await query<{ count: number }>("SELECT COUNT(*)::int AS count FROM cards");
+  if (Number(countRows[0]?.count ?? 0) === 0) {
+    for (const profile of seedProfiles) {
+      await query(
+        "INSERT INTO cards (" +
+          "slug,nfc_token,nfc_mode,nfc_status,active,first_name,last_name,job_title," +
+          "subsidiary,company,mobile,whatsapp,phone,email,website,address,city,country," +
+          "presentation,photo_url,social_links" +
+        ") VALUES (" +
+          "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb" +
+        ") ON CONFLICT (slug) DO NOTHING",
+        [
+          profile.slug,
+          profile.nfcToken,
+          profile.nfcMode,
+          profile.nfcStatus ?? "new",
+          profile.active,
+          profile.firstName,
+          profile.lastName,
+          profile.jobTitle,
+          profile.subsidiary,
+          profile.company,
+          profile.mobile ?? null,
+          profile.whatsapp ?? null,
+          profile.phone ?? null,
+          profile.email,
+          profile.website,
+          profile.address,
+          profile.city,
+          profile.country,
+          profile.presentation ?? null,
+          profile.photoUrl ?? null,
+          JSON.stringify(profile.socialLinks ?? [])
+        ]
+      );
+    }
+  }
+}
+
+async function ensureSchema() {
+  if (!globalForDb.vigilusSchemaPromise) {
+    globalForDb.vigilusSchemaPromise = initializeDatabase().catch((error) => {
+      globalForDb.vigilusSchemaPromise = undefined;
+      throw error;
+    });
+  }
+  await globalForDb.vigilusSchemaPromise;
+}
+
+export async function getAllProfiles(options?: { includeInactive?: boolean }) {
+  await ensureSchema();
+  const rows = options?.includeInactive
+    ? await query<CardRow>("SELECT * FROM cards ORDER BY first_name,last_name")
+    : await query<CardRow>("SELECT * FROM cards WHERE active=TRUE ORDER BY first_name,last_name");
   return rows.map((row) => rowToCard(row)!);
 }
 
-export function getProfileBySlug(slug: string, options?: { includeInactive?: boolean }) {
-  const sql = options?.includeInactive
-    ? "SELECT * FROM cards WHERE slug = ? LIMIT 1"
-    : "SELECT * FROM cards WHERE slug = ? AND active = 1 LIMIT 1";
-  return rowToCard(db().prepare(sql).get(slug) as CardRow | undefined);
+export async function getProfileBySlug(slug: string, options?: { includeInactive?: boolean }) {
+  await ensureSchema();
+  const rows = options?.includeInactive
+    ? await query<CardRow>("SELECT * FROM cards WHERE slug=$1 LIMIT 1", [slug])
+    : await query<CardRow>("SELECT * FROM cards WHERE slug=$1 AND active=TRUE LIMIT 1", [slug]);
+  return rowToCard(rows[0]);
 }
 
-export function getProfileByEmail(email: string) {
-  return rowToCard(
-    db().prepare("SELECT * FROM cards WHERE lower(email)=lower(?) LIMIT 1").get(email) as CardRow | undefined
+export async function getProfileByEmail(email: string) {
+  await ensureSchema();
+  const rows = await query<CardRow>(
+    "SELECT * FROM cards WHERE lower(email)=lower($1) LIMIT 1",
+    [email]
   );
+  return rowToCard(rows[0]);
 }
 
-export function getProfileByNfcToken(token: string, options?: { includeInactive?: boolean }) {
-  const sql = options?.includeInactive
-    ? "SELECT * FROM cards WHERE nfc_token = ? LIMIT 1"
-    : "SELECT * FROM cards WHERE nfc_token = ? AND active = 1 LIMIT 1";
-  return rowToCard(db().prepare(sql).get(token) as CardRow | undefined);
+export async function getProfileByNfcToken(
+  token: string,
+  options?: { includeInactive?: boolean }
+) {
+  await ensureSchema();
+  const rows = options?.includeInactive
+    ? await query<CardRow>("SELECT * FROM cards WHERE nfc_token=$1 LIMIT 1", [token])
+    : await query<CardRow>(
+        "SELECT * FROM cards WHERE nfc_token=$1 AND active=TRUE LIMIT 1",
+        [token]
+      );
+  return rowToCard(rows[0]);
 }
 
-export function getCardById(id: number) {
-  return rowToCard(db().prepare("SELECT * FROM cards WHERE id = ? LIMIT 1").get(id) as CardRow | undefined);
+export async function getCardById(id: number) {
+  await ensureSchema();
+  const rows = await query<CardRow>("SELECT * FROM cards WHERE id=$1 LIMIT 1", [id]);
+  return rowToCard(rows[0]);
 }
 
-export function saveCard(card: DigitalCard) {
-  const values = {
-    id: card.id ?? null,
-    slug: card.slug,
-    nfcToken: card.nfcToken,
-    nfcMode: card.nfcMode,
-    nfcStatus: card.nfcStatus ?? "new",
-    active: card.active ? 1 : 0,
-    firstName: card.firstName,
-    lastName: card.lastName,
-    jobTitle: card.jobTitle,
-    subsidiary: card.subsidiary,
-    company: card.company,
-    mobile: card.mobile || null,
-    whatsapp: card.whatsapp || null,
-    phone: card.phone || null,
-    email: card.email,
-    website: card.website,
-    address: card.address,
-    city: card.city,
-    country: card.country,
-    presentation: card.presentation || null,
-    photoUrl: card.photoUrl || null,
-    socialLinks: JSON.stringify(card.socialLinks ?? [])
-  };
+export async function saveCard(card: DigitalCard) {
+  await ensureSchema();
+  const socialLinks = JSON.stringify(card.socialLinks ?? []);
 
   if (card.id) {
-    db().prepare([
-      "UPDATE cards SET slug=@slug,nfc_token=@nfcToken,nfc_mode=@nfcMode,nfc_status=@nfcStatus,active=@active,",
-      "first_name=@firstName,last_name=@lastName,job_title=@jobTitle,subsidiary=@subsidiary,company=@company,",
-      "mobile=@mobile,whatsapp=@whatsapp,phone=@phone,email=@email,website=@website,address=@address,",
-      "city=@city,country=@country,presentation=@presentation,photo_url=@photoUrl,social_links=@socialLinks,",
-      "updated_at=CURRENT_TIMESTAMP WHERE id=@id"
-    ].join(" ")).run(values);
+    await query(
+      "UPDATE cards SET " +
+        "slug=$1,nfc_token=$2,nfc_mode=$3,nfc_status=$4,active=$5," +
+        "first_name=$6,last_name=$7,job_title=$8,subsidiary=$9,company=$10," +
+        "mobile=$11,whatsapp=$12,phone=$13,email=$14,website=$15,address=$16," +
+        "city=$17,country=$18,presentation=$19,photo_url=$20,social_links=$21::jsonb," +
+        "updated_at=NOW() WHERE id=$22",
+      [
+        card.slug,
+        card.nfcToken,
+        card.nfcMode,
+        card.nfcStatus ?? "new",
+        card.active,
+        card.firstName,
+        card.lastName,
+        card.jobTitle,
+        card.subsidiary,
+        card.company,
+        card.mobile ?? null,
+        card.whatsapp ?? null,
+        card.phone ?? null,
+        card.email,
+        card.website,
+        card.address,
+        card.city,
+        card.country,
+        card.presentation ?? null,
+        card.photoUrl ?? null,
+        socialLinks,
+        card.id
+      ]
+    );
     return card.id;
   }
 
-  const result = db().prepare([
-    "INSERT INTO cards (slug,nfc_token,nfc_mode,nfc_status,active,first_name,last_name,job_title,subsidiary,company,",
-    "mobile,whatsapp,phone,email,website,address,city,country,presentation,photo_url,social_links)",
-    "VALUES (@slug,@nfcToken,@nfcMode,@nfcStatus,@active,@firstName,@lastName,@jobTitle,@subsidiary,@company,",
-    "@mobile,@whatsapp,@phone,@email,@website,@address,@city,@country,@presentation,@photoUrl,@socialLinks)"
-  ].join(" ")).run(values);
+  const rows = await query<{ id: number }>(
+    "INSERT INTO cards (" +
+      "slug,nfc_token,nfc_mode,nfc_status,active,first_name,last_name,job_title," +
+      "subsidiary,company,mobile,whatsapp,phone,email,website,address,city,country," +
+      "presentation,photo_url,social_links" +
+    ") VALUES (" +
+      "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb" +
+    ") RETURNING id",
+    [
+      card.slug,
+      card.nfcToken,
+      card.nfcMode,
+      card.nfcStatus ?? "new",
+      card.active,
+      card.firstName,
+      card.lastName,
+      card.jobTitle,
+      card.subsidiary,
+      card.company,
+      card.mobile ?? null,
+      card.whatsapp ?? null,
+      card.phone ?? null,
+      card.email,
+      card.website,
+      card.address,
+      card.city,
+      card.country,
+      card.presentation ?? null,
+      card.photoUrl ?? null,
+      socialLinks
+    ]
+  );
 
-  return Number(result.lastInsertRowid);
+  return Number(rows[0].id);
 }
 
-export function setCardActive(id: number, active: boolean) {
-  db().prepare("UPDATE cards SET active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(active ? 1 : 0, id);
+export async function setCardActive(id: number, active: boolean) {
+  await ensureSchema();
+  await query("UPDATE cards SET active=$1,updated_at=NOW() WHERE id=$2", [active, id]);
 }
 
-export function setCardProvisioningStatus(id: number, status: NfcProvisioningStatus) {
+export async function setCardProvisioningStatus(
+  id: number,
+  status: NfcProvisioningStatus
+) {
+  await ensureSchema();
+
   if (status === "new") {
-    db().prepare(
-      "UPDATE cards SET nfc_status='new',programmed_at=NULL,tested_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?"
-    ).run(id);
+    await query(
+      "UPDATE cards SET nfc_status='new',programmed_at=NULL,tested_at=NULL,updated_at=NOW() WHERE id=$1",
+      [id]
+    );
     return;
   }
 
   if (status === "programmed") {
-    db().prepare(
-      "UPDATE cards SET nfc_status='programmed',programmed_at=COALESCE(programmed_at,CURRENT_TIMESTAMP),tested_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?"
-    ).run(id);
+    await query(
+      "UPDATE cards SET nfc_status='programmed'," +
+      "programmed_at=COALESCE(programmed_at,NOW()),tested_at=NULL,updated_at=NOW() WHERE id=$1",
+      [id]
+    );
     return;
   }
 
-  db().prepare(
-    "UPDATE cards SET nfc_status='tested',programmed_at=COALESCE(programmed_at,CURRENT_TIMESTAMP),tested_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?"
-  ).run(id);
-}
-
-export function getBrandConfig(subsidiary: string) {
-  return (
-    rowToBrand(
-      db().prepare("SELECT * FROM brand_configs WHERE subsidiary=? LIMIT 1").get(subsidiary) as BrandRow | undefined
-    ) ?? defaultBrandFor(subsidiary)
+  await query(
+    "UPDATE cards SET nfc_status='tested'," +
+    "programmed_at=COALESCE(programmed_at,NOW()),tested_at=NOW(),updated_at=NOW() WHERE id=$1",
+    [id]
   );
 }
 
-export function getAllBrandConfigs() {
-  return (db().prepare("SELECT * FROM brand_configs ORDER BY subsidiary").all() as BrandRow[]).map(
-    (row) => rowToBrand(row)!
+export async function getBrandConfig(subsidiary: string) {
+  await ensureSchema();
+  const rows = await query<BrandRow>(
+    "SELECT * FROM brand_configs WHERE subsidiary=$1 LIMIT 1",
+    [subsidiary]
+  );
+  return rowToBrand(rows[0]) ?? defaultBrandFor(subsidiary);
+}
+
+export async function getAllBrandConfigs() {
+  await ensureSchema();
+  const rows = await query<BrandRow>("SELECT * FROM brand_configs ORDER BY subsidiary");
+  return rows.map((row) => rowToBrand(row)!);
+}
+
+export async function saveBrandConfig(config: BrandConfig) {
+  await ensureSchema();
+  await query(
+    "INSERT INTO brand_configs (subsidiary,primary_color,accent_color,logo_url) " +
+    "VALUES ($1,$2,$3,$4) ON CONFLICT (subsidiary) DO UPDATE SET " +
+    "primary_color=EXCLUDED.primary_color,accent_color=EXCLUDED.accent_color,logo_url=EXCLUDED.logo_url",
+    [config.subsidiary, config.primaryColor, config.accentColor, config.logoUrl ?? null]
   );
 }
 
-export function saveBrandConfig(config: BrandConfig) {
-  db().prepare([
-    "INSERT INTO brand_configs (subsidiary,primary_color,accent_color,logo_url)",
-    "VALUES (?,?,?,?)",
-    "ON CONFLICT(subsidiary) DO UPDATE SET",
-    "primary_color=excluded.primary_color, accent_color=excluded.accent_color, logo_url=excluded.logo_url"
-  ].join(" ")).run(
-    config.subsidiary,
-    config.primaryColor,
-    config.accentColor,
-    config.logoUrl || null
-  );
-}
-
-export function recordScan(
+export async function recordScan(
   token: string,
   source: "nfc" | "qr",
   metadata?: { userAgent?: string | null; referer?: string | null }
 ) {
-  const card = getProfileByNfcToken(token, { includeInactive: true });
+  const card = await getProfileByNfcToken(token, { includeInactive: true });
   if (!card?.id || !card.active) return;
 
-  db().prepare(
-    "INSERT INTO scans (card_id,source,user_agent,referer) VALUES (?,?,?,?)"
-  ).run(
-    card.id,
-    source,
-    metadata?.userAgent?.slice(0, 500) ?? null,
-    metadata?.referer?.slice(0, 500) ?? null
+  await query(
+    "INSERT INTO scans (card_id,source,user_agent,referer) VALUES ($1,$2,$3,$4)",
+    [
+      card.id,
+      source,
+      metadata?.userAgent?.slice(0, 500) ?? null,
+      metadata?.referer?.slice(0, 500) ?? null
+    ]
   );
 }
 
-export function getDashboardStats() {
-  const totalCards = (db().prepare("SELECT COUNT(*) AS count FROM cards").get() as { count: number }).count;
-  const activeCards = (db().prepare("SELECT COUNT(*) AS count FROM cards WHERE active=1").get() as { count: number }).count;
-  const readyCards = (db().prepare("SELECT COUNT(*) AS count FROM cards WHERE nfc_status='tested'").get() as { count: number }).count;
-  const scansToday = (db().prepare("SELECT COUNT(*) AS count FROM scans WHERE date(scanned_at)=date('now')").get() as { count: number }).count;
-  const scans7Days = (db().prepare("SELECT COUNT(*) AS count FROM scans WHERE scanned_at>=datetime('now','-7 days')").get() as { count: number }).count;
-  return { totalCards, activeCards, readyCards, scansToday, scans7Days };
+export async function getDashboardStats() {
+  await ensureSchema();
+  const [total, active, ready, today, sevenDays] = await Promise.all([
+    query<{ count: number }>("SELECT COUNT(*)::int AS count FROM cards"),
+    query<{ count: number }>("SELECT COUNT(*)::int AS count FROM cards WHERE active=TRUE"),
+    query<{ count: number }>("SELECT COUNT(*)::int AS count FROM cards WHERE nfc_status='tested'"),
+    query<{ count: number }>(
+      "SELECT COUNT(*)::int AS count FROM scans WHERE scanned_at>=CURRENT_DATE"
+    ),
+    query<{ count: number }>(
+      "SELECT COUNT(*)::int AS count FROM scans WHERE scanned_at>=NOW()-INTERVAL '7 days'"
+    )
+  ]);
+
+  return {
+    totalCards: Number(total[0]?.count ?? 0),
+    activeCards: Number(active[0]?.count ?? 0),
+    readyCards: Number(ready[0]?.count ?? 0),
+    scansToday: Number(today[0]?.count ?? 0),
+    scans7Days: Number(sevenDays[0]?.count ?? 0)
+  };
 }
 
-export function getRecentScans(limit = 12) {
-  return db().prepare([
-    "SELECT scans.id AS id,scans.source AS source,scans.scanned_at AS scannedAt,",
-    "cards.first_name AS firstName,cards.last_name AS lastName,cards.subsidiary AS subsidiary",
-    "FROM scans JOIN cards ON cards.id=scans.card_id",
-    "ORDER BY scans.scanned_at DESC LIMIT ?"
-  ].join(" ")).all(limit) as Array<{
+export async function getRecentScans(limit = 12) {
+  await ensureSchema();
+  return query<{
     id: number;
     source: string;
     scannedAt: string;
     firstName: string;
     lastName: string;
     subsidiary: string;
-  }>;
+  }>(
+    "SELECT scans.id AS id,scans.source AS source,scans.scanned_at AS \"scannedAt\"," +
+    "cards.first_name AS \"firstName\",cards.last_name AS \"lastName\",cards.subsidiary AS subsidiary " +
+    "FROM scans JOIN cards ON cards.id=scans.card_id " +
+    "ORDER BY scans.scanned_at DESC LIMIT $1",
+    [limit]
+  );
 }
 
-export function getTopCards(limit = 5) {
-  return db().prepare([
-    "SELECT cards.id AS id,cards.first_name AS firstName,cards.last_name AS lastName,",
-    "cards.subsidiary AS subsidiary,COUNT(scans.id) AS scans",
-    "FROM cards LEFT JOIN scans ON scans.card_id=cards.id",
-    "GROUP BY cards.id ORDER BY scans DESC,cards.first_name ASC LIMIT ?"
-  ].join(" ")).all(limit) as Array<{
+export async function getTopCards(limit = 5) {
+  await ensureSchema();
+  return query<{
     id: number;
     firstName: string;
     lastName: string;
     subsidiary: string;
     scans: number;
-  }>;
+  }>(
+    "SELECT cards.id AS id,cards.first_name AS \"firstName\",cards.last_name AS \"lastName\"," +
+    "cards.subsidiary AS subsidiary,COUNT(scans.id)::int AS scans " +
+    "FROM cards LEFT JOIN scans ON scans.card_id=cards.id " +
+    "GROUP BY cards.id ORDER BY scans DESC,cards.first_name ASC LIMIT $1",
+    [limit]
+  );
+}
+
+export async function saveMediaAsset(
+  filename: string,
+  mimeType: string,
+  dataBase64: string
+) {
+  await ensureSchema();
+  await query(
+    "INSERT INTO media_assets (filename,mime_type,data_base64) VALUES ($1,$2,$3) " +
+    "ON CONFLICT (filename) DO UPDATE SET mime_type=EXCLUDED.mime_type,data_base64=EXCLUDED.data_base64",
+    [filename, mimeType, dataBase64]
+  );
+}
+
+export async function getMediaAsset(filename: string): Promise<MediaAsset | undefined> {
+  await ensureSchema();
+  const rows = await query<MediaAsset>(
+    "SELECT filename,mime_type AS \"mimeType\",data_base64 AS \"dataBase64\" " +
+    "FROM media_assets WHERE filename=$1 LIMIT 1",
+    [filename]
+  );
+  return rows[0];
 }

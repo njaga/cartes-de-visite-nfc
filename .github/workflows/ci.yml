@@ -32,7 +32,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: https://cartes-de-visite-nfc.vercel.app
-          DB_PATH: ./data/ci.db
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: ci-only-password
           ADMIN_SESSION_SECRET: ci-only-secret-that-is-long-enough-for-build

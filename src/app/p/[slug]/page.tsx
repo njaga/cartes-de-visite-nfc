@@ -40,7 +40,7 @@ function whatsAppHref(number: string) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const profile = getProfileBySlug(slug);
+  const profile = await getProfileBySlug(slug);
   if (!profile) return { title: "Profil introuvable" };
 
   return {
@@ -51,10 +51,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProfilePage({ params }: PageProps) {
   const { slug } = await params;
-  const profile = getProfileBySlug(slug);
+  const profile = await getProfileBySlug(slug);
   if (!profile) notFound();
 
-  const brand = getBrandConfig(profile.subsidiary);
+  const brand = await getBrandConfig(profile.subsidiary);
   const fullName = profile.firstName + " " + profile.lastName;
   const initials = (profile.firstName[0] ?? "") + (profile.lastName[0] ?? "");
   const whatsapp = profile.whatsapp || profile.mobile;
