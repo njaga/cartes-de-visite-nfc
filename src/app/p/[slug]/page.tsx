@@ -69,7 +69,7 @@ export default async function ProfilePage({ params }: PageProps) {
         <header className="profile-hero">
           <div className="profile-brand profile-brand-real">
             <span className="profile-brand-logo">
-              <img src={brand.logoUrl || "/branding/vigilus-logo.png"} alt="Vigilus" />
+              <img src={brand.logoUrl || "/branding/vigilus-groupe-sa.png"} alt="Vigilus" />
             </span>
             <small>{profile.subsidiary}</small>
           </div>

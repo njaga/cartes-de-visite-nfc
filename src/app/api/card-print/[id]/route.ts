@@ -79,9 +79,35 @@ function drawTrimMarks(page: PDFPage) {
 
 }
 
-async function embedLogo(document: PDFDocument) {
-  const bytes = await readFile(path.join(process.cwd(), "public", "branding", "vigilus-logo.png"));
-  return document.embedPng(bytes);
+async function embedBrandLogo(document: PDFDocument, logoUrl?: string) {
+  const fallback = "/branding/vigilus-groupe-sa.png";
+  const source = logoUrl || fallback;
+
+  try {
+    if (source.startsWith("/branding/")) {
+      const filename = path.basename(source);
+      const bytes = await readFile(path.join(process.cwd(), "public", "branding", filename));
+      const extension = path.extname(filename).toLowerCase();
+      return extension === ".jpg" || extension === ".jpeg"
+        ? document.embedJpg(bytes)
+        : document.embedPng(bytes);
+    }
+
+    if (source.startsWith("/uploads/")) {
+      const filename = path.basename(source);
+      const bytes = await readFile(path.join(uploadsDirectory(), filename));
+      const extension = path.extname(filename).toLowerCase();
+      if (extension === ".jpg" || extension === ".jpeg") return document.embedJpg(bytes);
+      if (extension === ".png") return document.embedPng(bytes);
+    }
+  } catch {
+    // Fallback below.
+  }
+
+  const fallbackBytes = await readFile(
+    path.join(process.cwd(), "public", "branding", "vigilus-groupe-sa.png")
+  );
+  return document.embedPng(fallbackBytes);
 }
 
 async function embedLocalPhoto(document: PDFDocument, photoUrl?: string) {
@@ -131,7 +157,7 @@ export async function GET(request: Request, context: RouteContext) {
 
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const logo = await embedLogo(pdf);
+  const logo = await embedBrandLogo(pdf, brand.logoUrl);
   const photo = await embedLocalPhoto(pdf, card.photoUrl);
 
   const pageWidth = mm(91.6);

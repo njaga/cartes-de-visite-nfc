@@ -30,7 +30,7 @@ export default async function AdminDashboardPage() {
     <main className="admin-shell">
       <header className="admin-topbar">
         <div className="admin-brand admin-brand-real">
-          <img src="/branding/vigilus-logo.png" alt="Vigilus" />
+          <img src="/branding/vigilus-groupe-sa.png" alt="Vigilus" />
           <small>Digital Cards</small>
         </div>
         <div className="admin-user">

@@ -8,6 +8,9 @@ const subsidiaries = [
   "Vigilus Guinée",
   "Vigilus Mobility",
   "Vigilus Properties",
+  "Vigilus Facilities",
+  "Vigilus International",
+  "Vigilus Dubaï",
   "VIGILUS Group"
 ];
 

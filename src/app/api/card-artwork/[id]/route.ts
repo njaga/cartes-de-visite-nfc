@@ -167,7 +167,7 @@ export async function GET(request: Request, context: RouteContext) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || requestUrl.origin;
   const nfcUrl = origin + "/n/" + card.nfcToken;
 
-  const logoHref = await embeddedAsset(brand.logoUrl || "/branding/vigilus-logo.png", origin);
+  const logoHref = await embeddedAsset(brand.logoUrl || "/branding/vigilus-groupe-sa.png", origin);
   const photoHref = await embeddedAsset(card.photoUrl, origin);
 
   if (!logoHref) {

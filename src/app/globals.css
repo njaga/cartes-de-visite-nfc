@@ -1987,3 +1987,28 @@ svg {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+.provision-brand-logo {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.provision-brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (max-width: 680px) {
+  .provision-brand-logo {
+    width: 44px;
+    height: 44px;
+  }
+}

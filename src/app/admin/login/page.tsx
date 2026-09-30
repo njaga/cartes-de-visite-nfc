@@ -16,7 +16,7 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
     <main className="admin-login-shell">
       <section className="admin-login-card">
         <div className="vigilus-logo-lockup">
-          <img src="/branding/vigilus-logo.png" alt="Vigilus" />
+          <img src="/branding/vigilus-groupe-sa.png" alt="Vigilus" />
           <small>Digital Cards</small>
         </div>
 

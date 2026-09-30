@@ -187,11 +187,17 @@ Les SVG restent vectoriels pour le BAT et l'impression. Le fond perdu doit être
 
 ## Identité Vigilus et BAT imprimeur
 
-Le logo officiel utilisé par défaut est stocké localement dans :
+Les logos sont stockés localement dans \`public/branding/\` et ne dépendent pas d'URLs distantes.
 
-\`public/branding/vigilus-logo.png\`
+Matrice par défaut :
 
-Il provient du fichier \`media/site/logo.png\` du site Vigilus Facilities et n'est pas chargé depuis une URL distante.
+- \`VIGILUS Group\`, Vigilus Sénégal, Vigilus Guinée et Vigilus Côte d’Ivoire → \`vigilus-groupe-sa.png\` ;
+- Vigilus Sierra Leone et Vigilus Facilities → \`vigilus-facilities.png\` ;
+- Vigilus Mobility → \`vigilus-mobility.png\` ;
+- Vigilus Properties → \`vigilus-properties.png\` ;
+- Vigilus International et Vigilus Dubaï → \`vigilus-international.png\`.
+
+Le fichier historique \`vigilus-logo.png\` correspond au logo Facilities fourni initialement et est conservé uniquement pour compatibilité. La base migre automatiquement ces anciennes références vers le logo correspondant à la filiale.
 
 L'écran \`/admin/cartes/<id>/impression\` propose :
 - un aperçu réaliste recto/verso ;

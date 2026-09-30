@@ -4,7 +4,7 @@ import path from "node:path";
 import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 import { seedProfiles } from "@/lib/profiles";
 import type { BrandConfig } from "@/lib/brands";
-import { defaultBrandConfigs, defaultBrandFor, VIGILUS_LOGO_URL } from "@/lib/brands";
+import { defaultBrandConfigs, defaultBrandFor } from "@/lib/brands";
 
 type CardRow = {
   id: number;
@@ -112,6 +112,13 @@ function initializeDatabase() {
     brandInsert.run(brand.subsidiary, brand.primaryColor, brand.accentColor, brand.logoUrl ?? null);
   }
 
+  const migrateLegacyBrandLogo = database.prepare(
+    "UPDATE brand_configs SET logo_url=? WHERE subsidiary=? AND (logo_url IS NULL OR logo_url='' OR logo_url='/branding/vigilus-logo.png')"
+  );
+  for (const brand of defaultBrandConfigs) {
+    migrateLegacyBrandLogo.run(brand.logoUrl ?? null, brand.subsidiary);
+  }
+
   const count = database.prepare("SELECT COUNT(*) AS count FROM cards").get() as { count: number };
   if (count.count === 0) {
     const insert = database.prepare([
@@ -198,7 +205,7 @@ function rowToBrand(row: BrandRow | undefined): BrandConfig | undefined {
     subsidiary: row.subsidiary,
     primaryColor: row.primary_color,
     accentColor: row.accent_color,
-    logoUrl: row.logo_url || VIGILUS_LOGO_URL
+    logoUrl: row.logo_url || defaultBrandFor(row.subsidiary).logoUrl
   };
 }
 
