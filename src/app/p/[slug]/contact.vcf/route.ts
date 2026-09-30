@@ -1,5 +1,6 @@
 import { getProfileBySlug } from "@/lib/db";
 import { createVCard } from "@/lib/vcard";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
@@ -19,8 +20,7 @@ export async function GET(request: Request, context: RouteContext) {
     .replace(/[^a-zA-Z0-9-]/g, "-")
     .toLowerCase();
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || new URL(request.url).origin;
+  const baseUrl = getPublicSiteUrl();
 
   return new Response(createVCard(profile, baseUrl), {
     headers: {
