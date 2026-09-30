@@ -98,15 +98,7 @@ export function createVCard(
     profile.services?.length
       ? "Expertises : " + profile.services.join(", ")
       : null,
-    profile.subsidiary ? "Filiale : " + profile.subsidiary : null,
-    profile.whatsapp ? "WhatsApp : " + profile.whatsapp : null,
-    profile.commercialCtaLabel && profile.commercialCtaUrl
-      ? profile.commercialCtaLabel + " : " + profile.commercialCtaUrl
-      : null,
-    profile.brochureUrl
-      ? (profile.brochureLabel || "Brochure") + " : " + profile.brochureUrl
-      : null,
-    profileUrl ? "Profil digital Vigilus : " + profileUrl : null
+    profile.subsidiary ? "Filiale : " + profile.subsidiary : null
   ].filter((value): value is string => Boolean(value));
 
   const lines: Array<string | null> = [
@@ -170,30 +162,6 @@ export function createVCard(
 
   if (profileUrl) {
     lines.push(...labeledUrl(itemIndex++, profileUrl, "Profil digital Vigilus"));
-  }
-
-  if (
-    profile.commercialCtaUrl &&
-    profile.commercialCtaUrl !== profile.website &&
-    profile.commercialCtaUrl !== profileUrl
-  ) {
-    lines.push(
-      ...labeledUrl(
-        itemIndex++,
-        profile.commercialCtaUrl,
-        profile.commercialCtaLabel || "Découvrir nos solutions"
-      )
-    );
-  }
-
-  if (profile.brochureUrl) {
-    lines.push(
-      ...labeledUrl(
-        itemIndex++,
-        profile.brochureUrl,
-        profile.brochureLabel || "Brochure"
-      )
-    );
   }
 
   for (const link of profile.socialLinks ?? []) {
