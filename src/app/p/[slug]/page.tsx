@@ -79,13 +79,30 @@ function ExternalIcon() {
   );
 }
 
-function whatsAppHref(number: string) {
-  return "https://wa.me/" + number.replace(/\D/g, "");
+function DocumentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 3h8l4 4v14H6z" />
+      <path d="M14 3v5h5M9 13h6M9 17h6" />
+    </svg>
+  );
+}
+
+function whatsAppHref(number: string, message?: string) {
+  const base = "https://wa.me/" + number.replace(/\D/g, "");
+  return message ? base + "?text=" + encodeURIComponent(message) : base;
 }
 
 function mapsHref(address: string, city: string, country: string) {
   const query = [address, city, country].filter(Boolean).join(", ");
   return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
+}
+
+function offerIsActive(startDate?: string, endDate?: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (startDate && startDate > today) return false;
+  if (endDate && endDate < today) return false;
+  return true;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -113,19 +130,31 @@ export default async function ProfilePage({ params }: PageProps) {
   const fullName = profile.firstName + " " + profile.lastName;
   const initials = (profile.firstName[0] ?? "") + (profile.lastName[0] ?? "");
   const whatsapp = profile.whatsapp || profile.mobile;
+  const whatsappHref = whatsapp
+    ? whatsAppHref(whatsapp, profile.whatsappMessage)
+    : undefined;
   const location = [profile.city, profile.country].filter(Boolean).join(" · ");
+  const showOffer =
+    Boolean(profile.offerTitle || profile.offerText) &&
+    offerIsActive(profile.offerStartDate, profile.offerEndDate);
+  const hasCommercial =
+    Boolean(profile.services?.length) ||
+    Boolean(profile.commercialCtaLabel && profile.commercialCtaUrl) ||
+    Boolean(profile.brochureUrl) ||
+    showOffer;
+
   const themeStyle = {
     "--profile-primary": brand.primaryColor,
     "--profile-accent": brand.accentColor
   } as CSSProperties;
 
-  const secondaryMobileHref = whatsapp
-    ? whatsAppHref(whatsapp)
+  const secondaryMobileHref = whatsappHref
+    ? whatsappHref
     : profile.mobile
       ? "tel:" + profile.mobile.replace(/\s/g, "")
       : "mailto:" + profile.email;
 
-  const secondaryMobileLabel = whatsapp ? "WhatsApp" : profile.mobile ? "Appeler" : "E-mail";
+  const secondaryMobileLabel = whatsappHref ? "WhatsApp" : profile.mobile ? "Appeler" : "E-mail";
 
   return (
     <main className="public-profile-shell" style={themeStyle}>
@@ -187,8 +216,8 @@ export default async function ProfilePage({ params }: PageProps) {
                   <small>Appeler</small>
                 </a>
               )}
-              {whatsapp && (
-                <a href={whatsAppHref(whatsapp)} target="_blank" rel="noreferrer">
+              {whatsappHref && (
+                <a href={whatsappHref} target="_blank" rel="noreferrer">
                   <span><WhatsAppIcon /></span>
                   <small>WhatsApp</small>
                 </a>
@@ -205,6 +234,74 @@ export default async function ProfilePage({ params }: PageProps) {
               <section className="public-profile-section public-profile-about">
                 <span className="public-profile-section-label">À propos</span>
                 <p>{profile.presentation}</p>
+              </section>
+            )}
+
+            {hasCommercial && (
+              <section className="public-profile-section public-profile-commercial">
+                <div className="public-profile-section-heading">
+                  <div>
+                    <span className="public-profile-section-label">Solutions</span>
+                    <h2>Comment pouvons-nous vous accompagner ?</h2>
+                  </div>
+                </div>
+
+                {!!profile.services?.length && (
+                  <div className="public-services-grid">
+                    {profile.services.slice(0, 8).map((service, index) => (
+                      <div className="public-service-item" key={service + index}>
+                        <span>{String(index + 1).padStart(2, "0")}</span>
+                        <strong>{service}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {(profile.commercialCtaLabel && profile.commercialCtaUrl) || profile.brochureUrl ? (
+                  <div className="public-commercial-actions">
+                    {profile.commercialCtaLabel && profile.commercialCtaUrl && (
+                      <a
+                        className="public-commercial-primary"
+                        href={profile.commercialCtaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span>{profile.commercialCtaLabel}</span>
+                        <ArrowIcon />
+                      </a>
+                    )}
+
+                    {profile.brochureUrl && (
+                      <a
+                        className="public-commercial-resource"
+                        href={profile.brochureUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <DocumentIcon />
+                        <span>{profile.brochureLabel || "Voir notre brochure"}</span>
+                      </a>
+                    )}
+                  </div>
+                ) : null}
+              </section>
+            )}
+
+            {showOffer && (
+              <section className="public-profile-section public-offer-section">
+                <div className="public-offer-card">
+                  <div className="public-offer-copy">
+                    <span>À découvrir</span>
+                    {profile.offerTitle && <h2>{profile.offerTitle}</h2>}
+                    {profile.offerText && <p>{profile.offerText}</p>}
+                  </div>
+                  {profile.offerUrl && (
+                    <a href={profile.offerUrl} target="_blank" rel="noreferrer">
+                      <span>En savoir plus</span>
+                      <ArrowIcon />
+                    </a>
+                  )}
+                </div>
               </section>
             )}
 
@@ -312,10 +409,10 @@ export default async function ProfilePage({ params }: PageProps) {
         <a
           className="public-mobile-reach"
           href={secondaryMobileHref}
-          target={whatsapp ? "_blank" : undefined}
-          rel={whatsapp ? "noreferrer" : undefined}
+          target={whatsappHref ? "_blank" : undefined}
+          rel={whatsappHref ? "noreferrer" : undefined}
         >
-          {whatsapp ? <WhatsAppIcon /> : profile.mobile ? <PhoneIcon /> : <MailIcon />}
+          {whatsappHref ? <WhatsAppIcon /> : profile.mobile ? <PhoneIcon /> : <MailIcon />}
           <span>{secondaryMobileLabel}</span>
         </a>
       </nav>

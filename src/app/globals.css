@@ -2762,3 +2762,226 @@ svg {
     transition: none;
   }
 }
+
+
+/* Commercial profile extensions */
+.public-profile-commercial {
+  padding-top: 30px;
+}
+
+.public-services-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.public-service-item {
+  min-height: 70px;
+  padding: 15px 16px;
+  border: 1px solid var(--public-line);
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.public-service-item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--profile-primary) 24%, var(--public-line));
+  background: color-mix(in srgb, var(--profile-primary) 2.5%, #fff);
+}
+
+.public-service-item > span {
+  color: var(--profile-primary);
+  font-size: .66rem;
+  font-weight: 780;
+  letter-spacing: .08em;
+}
+
+.public-service-item strong {
+  color: var(--public-ink);
+  font-size: .84rem;
+  font-weight: 630;
+  line-height: 1.35;
+}
+
+.public-commercial-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.public-commercial-primary,
+.public-commercial-resource {
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: .78rem;
+  font-weight: 720;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.public-commercial-primary {
+  background: var(--profile-primary);
+  color: #fff;
+  border: 1px solid var(--profile-primary);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--profile-primary) 16%, transparent);
+}
+
+.public-commercial-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 24px color-mix(in srgb, var(--profile-primary) 21%, transparent);
+}
+
+.public-commercial-resource {
+  background: #fff;
+  color: var(--public-ink);
+  border: 1px solid var(--public-line);
+}
+
+.public-commercial-resource:hover {
+  transform: translateY(-1px);
+  border-color: #d7dee2;
+  background: #fafbfb;
+}
+
+.public-commercial-primary svg,
+.public-commercial-resource svg {
+  width: 17px;
+  height: 17px;
+}
+
+.public-offer-section {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+.public-offer-card {
+  position: relative;
+  overflow: hidden;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--profile-primary) 14%, var(--public-line));
+  border-radius: 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--profile-primary) 5%, #ffffff),
+      #ffffff 72%
+    );
+}
+
+.public-offer-card::after {
+  content: "";
+  position: absolute;
+  right: -34px;
+  top: -44px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--profile-primary) 7%, transparent);
+  pointer-events: none;
+}
+
+.public-offer-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+}
+
+.public-offer-copy > span {
+  color: var(--profile-accent);
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.public-offer-copy h2 {
+  margin: 7px 0 6px;
+  color: var(--public-ink);
+  font-size: clamp(1.3rem, 3vw, 1.72rem);
+  font-weight: 670;
+  letter-spacing: -.035em;
+  line-height: 1.1;
+}
+
+.public-offer-copy p {
+  margin: 0;
+  color: #556773;
+  font-size: .88rem;
+  line-height: 1.58;
+}
+
+.public-offer-card > a {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 13px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--public-ink);
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 720;
+}
+
+.public-offer-card > a svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 680px) {
+  .public-services-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-commercial-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .public-commercial-primary,
+  .public-commercial-resource {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .public-offer-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .public-offer-card > a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-service-item,
+  .public-commercial-primary,
+  .public-commercial-resource {
+    transition: none;
+  }
+}

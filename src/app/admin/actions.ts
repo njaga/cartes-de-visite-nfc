@@ -38,6 +38,14 @@ function slugify(input: string) {
     .slice(0, 70);
 }
 
+function serviceList(raw: string) {
+  return raw
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
 function socialLinks(formData: FormData): SocialLink[] {
   const fields = [
     ["LinkedIn", "linkedin"],
@@ -125,6 +133,7 @@ export async function saveCardAction(formData: FormData) {
     company: value(formData, "company") || "VIGILUS Group",
     mobile: value(formData, "mobile") || undefined,
     whatsapp: value(formData, "whatsapp") || undefined,
+    whatsappMessage: value(formData, "whatsappMessage") || undefined,
     phone: value(formData, "phone") || undefined,
     email: value(formData, "email"),
     website: value(formData, "website"),
@@ -133,7 +142,17 @@ export async function saveCardAction(formData: FormData) {
     country: value(formData, "country"),
     presentation: value(formData, "presentation") || undefined,
     photoUrl,
-    socialLinks: socialLinks(formData)
+    socialLinks: socialLinks(formData),
+    services: serviceList(value(formData, "services")),
+    commercialCtaLabel: value(formData, "commercialCtaLabel") || undefined,
+    commercialCtaUrl: value(formData, "commercialCtaUrl") || undefined,
+    offerTitle: value(formData, "offerTitle") || undefined,
+    offerText: value(formData, "offerText") || undefined,
+    offerUrl: value(formData, "offerUrl") || undefined,
+    offerStartDate: value(formData, "offerStartDate") || undefined,
+    offerEndDate: value(formData, "offerEndDate") || undefined,
+    brochureLabel: value(formData, "brochureLabel") || undefined,
+    brochureUrl: value(formData, "brochureUrl") || undefined
   };
 
   const savedId = await saveCard(card);
@@ -209,6 +228,7 @@ export async function importCardsAction(formData: FormData) {
     }
 
     const existing = await getProfileByEmail(email);
+    const importedServices = serviceList(cell(row, "Services", "Expertises"));
     let slug = existing?.slug || slugify(firstName + "-" + lastName) || "collaborateur";
     if (!existing) {
       const slugOwner = await getProfileBySlug(slug, { includeInactive: true });
@@ -231,6 +251,7 @@ export async function importCardsAction(formData: FormData) {
       company: cell(row, "Entreprise", "Company") || "VIGILUS Group",
       mobile: cell(row, "Téléphone portable", "Telephone portable", "Mobile") || existing?.mobile,
       whatsapp: cell(row, "WhatsApp", "Whatsapp") || existing?.whatsapp,
+      whatsappMessage: cell(row, "Message WhatsApp", "WhatsApp Message") || existing?.whatsappMessage,
       phone: cell(row, "Téléphone fixe", "Telephone fixe", "Fixe") || existing?.phone,
       email,
       website: cell(row, "Site web", "Website") || existing?.website || "https://www.groupevigilus.com",
@@ -239,7 +260,17 @@ export async function importCardsAction(formData: FormData) {
       country: cell(row, "Pays", "Country") || existing?.country || "Sénégal",
       presentation: cell(row, "Présentation", "Presentation") || existing?.presentation,
       photoUrl: cell(row, "Photo URL", "Photo") || existing?.photoUrl,
-      socialLinks: rowSocialLinks(row).length ? rowSocialLinks(row) : existing?.socialLinks
+      socialLinks: rowSocialLinks(row).length ? rowSocialLinks(row) : existing?.socialLinks,
+      services: importedServices.length ? importedServices : existing?.services,
+      commercialCtaLabel: cell(row, "CTA commercial", "CTA label") || existing?.commercialCtaLabel,
+      commercialCtaUrl: cell(row, "Lien CTA", "CTA URL") || existing?.commercialCtaUrl,
+      offerTitle: cell(row, "Titre offre", "Offer title") || existing?.offerTitle,
+      offerText: cell(row, "Texte offre", "Offer text") || existing?.offerText,
+      offerUrl: cell(row, "Lien offre", "Offer URL") || existing?.offerUrl,
+      offerStartDate: cell(row, "Début offre", "Offer start") || existing?.offerStartDate,
+      offerEndDate: cell(row, "Fin offre", "Offer end") || existing?.offerEndDate,
+      brochureLabel: cell(row, "Libellé brochure", "Brochure label") || existing?.brochureLabel,
+      brochureUrl: cell(row, "Lien brochure", "Brochure URL") || existing?.brochureUrl
     };
 
     await saveCard(card);

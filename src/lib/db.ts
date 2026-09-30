@@ -20,6 +20,7 @@ type CardRow = {
   company: string;
   mobile: string | null;
   whatsapp: string | null;
+  whatsapp_message: string | null;
   phone: string | null;
   email: string;
   website: string;
@@ -29,6 +30,16 @@ type CardRow = {
   presentation: string | null;
   photo_url: string | null;
   social_links: SocialLink[] | string | null;
+  services: string[] | string | null;
+  commercial_cta_label: string | null;
+  commercial_cta_url: string | null;
+  offer_title: string | null;
+  offer_text: string | null;
+  offer_url: string | null;
+  offer_start_date: string | Date | null;
+  offer_end_date: string | Date | null;
+  brochure_label: string | null;
+  brochure_url: string | null;
   created_at: string | Date;
   updated_at: string | Date;
 };
@@ -90,6 +101,22 @@ function parseSocialLinks(value: SocialLink[] | string | null): SocialLink[] {
   }
 }
 
+function parseStringArray(value: string[] | string | null): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function dateOnlyValue(value: string | Date | null | undefined) {
+  const normalized = dateValue(value);
+  return normalized ? normalized.slice(0, 10) : undefined;
+}
+
 function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
   if (!row) return undefined;
   return {
@@ -108,6 +135,7 @@ function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
     company: row.company,
     mobile: row.mobile ?? undefined,
     whatsapp: row.whatsapp ?? undefined,
+    whatsappMessage: row.whatsapp_message ?? undefined,
     phone: row.phone ?? undefined,
     email: row.email,
     website: row.website,
@@ -117,6 +145,16 @@ function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
     presentation: row.presentation ?? undefined,
     photoUrl: row.photo_url ?? undefined,
     socialLinks: parseSocialLinks(row.social_links),
+    services: parseStringArray(row.services),
+    commercialCtaLabel: row.commercial_cta_label ?? undefined,
+    commercialCtaUrl: row.commercial_cta_url ?? undefined,
+    offerTitle: row.offer_title ?? undefined,
+    offerText: row.offer_text ?? undefined,
+    offerUrl: row.offer_url ?? undefined,
+    offerStartDate: dateOnlyValue(row.offer_start_date),
+    offerEndDate: dateOnlyValue(row.offer_end_date),
+    brochureLabel: row.brochure_label ?? undefined,
+    brochureUrl: row.brochure_url ?? undefined,
     createdAt: dateValue(row.created_at),
     updatedAt: dateValue(row.updated_at)
   };
@@ -162,6 +200,33 @@ async function initializeDatabase() {
       "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()," +
       "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()" +
     ")"
+  );
+
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS whatsapp_message TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS services JSONB NOT NULL DEFAULT '[]'::jsonb");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS commercial_cta_label TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS commercial_cta_url TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS offer_title TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS offer_text TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS offer_url TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS offer_start_date DATE");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS offer_end_date DATE");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS brochure_label TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS brochure_url TEXT");
+
+  await query(
+    "UPDATE cards SET " +
+    "services = CASE WHEN services = '[]'::jsonb THEN $1::jsonb ELSE services END," +
+    "commercial_cta_label = COALESCE(commercial_cta_label, $2)," +
+    "commercial_cta_url = COALESCE(commercial_cta_url, $3)," +
+    "whatsapp_message = COALESCE(whatsapp_message, $4) " +
+    "WHERE slug = 'demo-vigilus'",
+    [
+      JSON.stringify(["Sécurité humaine","Sécurité électronique","Facility Management","Mobilité professionnelle"]),
+      "Découvrir nos solutions",
+      "https://www.groupevigilus.com",
+      "Bonjour Awa, je viens de consulter votre carte Vigilus et je souhaite échanger au sujet de nos besoins."
+    ]
   );
 
   await query(
@@ -305,6 +370,29 @@ export async function getCardById(id: number) {
   return rowToCard(rows[0]);
 }
 
+async function saveCommercialFields(id: number, card: DigitalCard) {
+  await query(
+    "UPDATE cards SET " +
+      "whatsapp_message=$1,services=$2::jsonb,commercial_cta_label=$3,commercial_cta_url=$4," +
+      "offer_title=$5,offer_text=$6,offer_url=$7,offer_start_date=$8,offer_end_date=$9," +
+      "brochure_label=$10,brochure_url=$11,updated_at=NOW() WHERE id=$12",
+    [
+      card.whatsappMessage ?? null,
+      JSON.stringify(card.services ?? []),
+      card.commercialCtaLabel ?? null,
+      card.commercialCtaUrl ?? null,
+      card.offerTitle ?? null,
+      card.offerText ?? null,
+      card.offerUrl ?? null,
+      card.offerStartDate || null,
+      card.offerEndDate || null,
+      card.brochureLabel ?? null,
+      card.brochureUrl ?? null,
+      id
+    ]
+  );
+}
+
 export async function saveCard(card: DigitalCard) {
   await ensureSchema();
   const socialLinks = JSON.stringify(card.socialLinks ?? []);
@@ -342,6 +430,7 @@ export async function saveCard(card: DigitalCard) {
         card.id
       ]
     );
+    await saveCommercialFields(card.id, card);
     return card.id;
   }
 
@@ -378,7 +467,9 @@ export async function saveCard(card: DigitalCard) {
     ]
   );
 
-  return Number(rows[0].id);
+  const newId = Number(rows[0].id);
+  await saveCommercialFields(newId, card);
+  return newId;
 }
 
 export async function setCardActive(id: number, active: boolean) {
