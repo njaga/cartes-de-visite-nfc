@@ -232,3 +232,16 @@ La couche SQLite historique a été retirée afin d'éviter toute écriture dans
 
 
 > État production : Neon est connecté au projet Vercel ; les déploiements utilisent PostgreSQL via `DATABASE_URL`.
+
+
+## Profil public commercial
+
+Chaque carte peut maintenant servir de support commercial léger avec des champs optionnels :
+
+- services / expertises ;
+- CTA commercial principal ;
+- offre ou actualité mise en avant avec dates de début et de fin ;
+- brochure ou catalogue ;
+- message WhatsApp prérempli.
+
+Les blocs vides ne sont jamais affichés. Une offre n'apparaît que pendant sa période de validité lorsqu'une date est renseignée. Le profil conserve donc un rendu sobre même si certains collaborateurs n'utilisent pas les fonctions commerciales.

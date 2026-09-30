@@ -57,6 +57,16 @@ export function AdminCardForm({ card }: { card?: DigitalCard }) {
           <label><span>Téléphone portable</span><input name="mobile" type="tel" defaultValue={card?.mobile ?? ""} /></label>
           <label><span>WhatsApp</span><input name="whatsapp" type="tel" defaultValue={card?.whatsapp ?? card?.mobile ?? ""} placeholder="+221 77 000 00 00" /></label>
           <label><span>Téléphone fixe</span><input name="phone" type="tel" defaultValue={card?.phone ?? "+221 33 867 77 32"} /></label>
+          <label className="admin-span-2">
+            <span>Message WhatsApp prérempli</span>
+            <textarea
+              name="whatsappMessage"
+              rows={3}
+              defaultValue={card?.whatsappMessage ?? ""}
+              placeholder="Bonjour, je viens de consulter votre carte Vigilus et je souhaite échanger concernant..."
+            />
+            <small className="field-hint">Ce message sera préparé automatiquement quand le visiteur ouvre WhatsApp.</small>
+          </label>
           <label><span>E-mail *</span><input name="email" type="email" required defaultValue={card?.email ?? ""} /></label>
           <label><span>Site web *</span><input name="website" type="url" required defaultValue={card?.website ?? "https://www.groupevigilus.com"} /></label>
           <label className="admin-span-2"><span>Adresse *</span><input name="address" required defaultValue={card?.address ?? ""} /></label>
@@ -91,6 +101,96 @@ export function AdminCardForm({ card }: { card?: DigitalCard }) {
           <label><span>Instagram</span><input name="instagram" type="url" defaultValue={socialValue(card, "Instagram")} /></label>
           <label><span>X</span><input name="x" type="url" defaultValue={socialValue(card, "X")} /></label>
         </div>
+      </div>
+
+
+      <div className="admin-form-section">
+        <div className="admin-section-heading">
+          <div>
+            <span>Commercial</span>
+            <h2>Services & mise en avant</h2>
+          </div>
+        </div>
+
+        <div className="admin-grid admin-grid-2">
+          <label className="admin-span-2">
+            <span>Services / expertises</span>
+            <textarea
+              name="services"
+              rows={4}
+              defaultValue={(card?.services ?? []).join("\n")}
+              placeholder={"Sécurité humaine\nSécurité électronique\nFacility Management\nMobilité professionnelle"}
+            />
+            <small className="field-hint">Un service par ligne. Afficher 3 à 6 services donne généralement le meilleur rendu.</small>
+          </label>
+
+          <label>
+            <span>Libellé du CTA principal</span>
+            <input
+              name="commercialCtaLabel"
+              defaultValue={card?.commercialCtaLabel ?? ""}
+              placeholder="Parler de votre besoin"
+            />
+          </label>
+          <label>
+            <span>Lien du CTA principal</span>
+            <input
+              name="commercialCtaUrl"
+              type="url"
+              defaultValue={card?.commercialCtaUrl ?? ""}
+              placeholder="https://..."
+            />
+          </label>
+
+          <label className="admin-span-2">
+            <span>Titre de l’offre / actualité</span>
+            <input
+              name="offerTitle"
+              defaultValue={card?.offerTitle ?? ""}
+              placeholder="Une offre à mettre en avant"
+            />
+          </label>
+          <label className="admin-span-2">
+            <span>Texte court de l’offre</span>
+            <textarea
+              name="offerText"
+              rows={3}
+              defaultValue={card?.offerText ?? ""}
+              placeholder="Une phrase courte, concrète et commerciale."
+            />
+          </label>
+          <label>
+            <span>Lien de l’offre</span>
+            <input name="offerUrl" type="url" defaultValue={card?.offerUrl ?? ""} placeholder="https://..." />
+          </label>
+          <div className="admin-grid admin-grid-2 admin-span-2">
+            <label>
+              <span>Début d’affichage</span>
+              <input name="offerStartDate" type="date" defaultValue={card?.offerStartDate ?? ""} />
+            </label>
+            <label>
+              <span>Fin d’affichage</span>
+              <input name="offerEndDate" type="date" defaultValue={card?.offerEndDate ?? ""} />
+            </label>
+          </div>
+
+          <label>
+            <span>Libellé brochure / catalogue</span>
+            <input
+              name="brochureLabel"
+              defaultValue={card?.brochureLabel ?? ""}
+              placeholder="Voir notre brochure"
+            />
+          </label>
+          <label>
+            <span>Lien brochure / catalogue</span>
+            <input name="brochureUrl" type="url" defaultValue={card?.brochureUrl ?? ""} placeholder="https://..." />
+          </label>
+        </div>
+
+        <p className="admin-help">
+          Ces éléments restent optionnels. Le profil public masque automatiquement les blocs vides pour garder un rendu très clean.
+        </p>
       </div>
 
       <div className="admin-form-section">
