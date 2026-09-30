@@ -26,7 +26,7 @@ export async function GET(request: Request, context: RouteContext) {
   const target =
     profile.nfcMode === "vcard"
       ? "/p/" + profile.slug + "/contact.vcf"
-      : "/p/" + profile.slug + "?src=" + source;
+      : "/p/" + profile.slug;
 
   return NextResponse.redirect(new URL(target, request.url), 307);
 }

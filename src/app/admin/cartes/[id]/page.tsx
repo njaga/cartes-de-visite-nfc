@@ -1,16 +1,14 @@
 import { notFound } from "next/navigation";
 import { AdminCardForm } from "@/components/admin-card-form";
-import { AdminLandingForm } from "@/components/admin-landing-form";
-import { AdminLeadsPanel } from "@/components/admin-leads-panel";
 import { requireAdmin } from "@/lib/admin-auth";
-import { getCardById, getCardLandingData, getLeadsByCard } from "@/lib/db";
+import { getCardById } from "@/lib/db";
 import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
 type EditCardPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string; landingSaved?: string }>;
+  searchParams: Promise<{ saved?: string }>;
 };
 
 function statusLabel(status: string | undefined) {
@@ -23,15 +21,10 @@ export default async function EditCardPage({ params, searchParams }: EditCardPag
   await requireAdmin();
 
   const { id } = await params;
-  const { saved, landingSaved } = await searchParams;
+  const { saved } = await searchParams;
   const card = await getCardById(Number(id));
 
-  if (!card?.id) notFound();
-
-  const [landing, leads] = await Promise.all([
-    getCardLandingData(card.id),
-    getLeadsByCard(card.id, 30)
-  ]);
+  if (!card) notFound();
 
   const baseUrl = getPublicSiteUrl();
   const nfcUrl = baseUrl + "/n/" + card.nfcToken;
@@ -60,27 +53,11 @@ export default async function EditCardPage({ params, searchParams }: EditCardPag
         </div>
 
         {saved === "1" && <p className="admin-success">Modifications enregistrées.</p>}
-        {landingSaved === "1" && <p className="admin-success">Landing page enregistrée.</p>}
-
-        <nav className="admin-card-tabs" aria-label="Gestion de la carte">
-          <a href="#profile">Profil</a>
-          <a href="#landing">Landing page</a>
-          <a href="#leads">Leads</a>
-          <a href="#nfc">NFC & QR</a>
-        </nav>
 
         <div className="admin-edit-grid">
-          <div className="admin-card-editor-stack">
-            <section id="profile">
-              <AdminCardForm card={card} />
-            </section>
+          <AdminCardForm card={card} />
 
-            <section id="landing">
-              <AdminLandingForm cardId={card.id} landing={landing} />
-            </section>
-          </div>
-
-          <aside className="admin-qr-panel" id="nfc">
+          <aside className="admin-qr-panel">
             <span>NFC + QR</span>
             <h2>{statusLabel(card.nfcStatus)}</h2>
             <div className={"nfc-big-status nfc-status-" + (card.nfcStatus ?? "new")}>
@@ -104,8 +81,6 @@ export default async function EditCardPage({ params, searchParams }: EditCardPag
             </a>
           </aside>
         </div>
-
-        <AdminLeadsPanel cardId={card.id} leads={leads} />
       </section>
     </main>
   );
