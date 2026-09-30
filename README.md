@@ -51,17 +51,22 @@ Aucune adresse IP brute n'est enregistrée par le module de statistiques.
 
 ## Base de données
 
-Le projet utilise SQLite avec \`better-sqlite3\`.
+Le projet utilise **Neon PostgreSQL** via `@neondatabase/serverless`.
 
-Par défaut :
+La variable obligatoire est :
 
-\`\`\`
-./data/vigilus-cards.db
-\`\`\`
+```env
+DATABASE_URL=postgresql://user:password@host.neon.tech/neondb?sslmode=require
+```
 
-Le chemin peut être changé avec \`DB_PATH\`.
+Le schéma comprend :
 
-SQLite convient à un serveur Node/VPS avec disque persistant. Pour un déploiement serverless à stockage éphémère, utiliser ensuite PostgreSQL ou MySQL. Les routes publiques ont été séparées de la couche de stockage pour faciliter cette migration.
+- `cards` : profils et état de programmation NFC ;
+- `scans` : scans NFC / QR ;
+- `brand_configs` : identité visuelle par filiale ;
+- `media_assets` : photos et logos uploadés.
+
+Le fichier `database/schema.sql` documente le schéma. L'application initialise également les tables manquantes au premier accès pour faciliter un nouveau déploiement.
 
 ## Configuration
 
@@ -69,7 +74,6 @@ Copier \`.env.example\` vers \`.env.local\` :
 
 \`\`\`env
 NEXT_PUBLIC_SITE_URL=https://cartes-de-visite-nfc.vercel.app
-DB_PATH=./data/vigilus-cards.db
 
 ADMIN_EMAIL=admin@groupevigilus.com
 ADMIN_PASSWORD=change-me
@@ -212,3 +216,16 @@ L'écran \`/admin/cartes/<id>/impression\` propose :
 - TrimBox au format fini 85,6 × 54 mm ;
 - BleedBox au format 91,6 × 60 mm ;
 - QR code vectoriel.
+
+
+## Déploiement Vercel + Neon
+
+Production actuelle :
+
+```
+https://cartes-de-visite-nfc.vercel.app
+```
+
+Le projet Vercel doit définir `DATABASE_URL` avec la chaîne de connexion Neon. Les liens NFC, QR et vCard continuent d'utiliser l'URL publique stable définie par `NEXT_PUBLIC_SITE_URL`.
+
+La couche SQLite historique a été retirée afin d'éviter toute écriture dans `/var/task`, qui est en lecture seule sur Vercel.

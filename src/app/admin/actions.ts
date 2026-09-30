@@ -92,13 +92,13 @@ export async function saveCardAction(formData: FormData) {
 
   const idRaw = value(formData, "id");
   const id = idRaw ? Number(idRaw) : undefined;
-  const existing = id && Number.isFinite(id) ? getCardById(id) : undefined;
+  const existing = id && Number.isFinite(id) ? await getCardById(id) : undefined;
 
   const firstName = value(formData, "firstName");
   const lastName = value(formData, "lastName");
   let slug = value(formData, "slug") || slugify(firstName + "-" + lastName) || "collaborateur";
 
-  const sameSlug = getProfileBySlug(slug, { includeInactive: true });
+  const sameSlug = await getProfileBySlug(slug, { includeInactive: true });
   if (sameSlug?.id && sameSlug.id !== existing?.id) {
     slug = slug + "-" + randomUUID().slice(0, 6);
   }
@@ -136,7 +136,7 @@ export async function saveCardAction(formData: FormData) {
     socialLinks: socialLinks(formData)
   };
 
-  const savedId = saveCard(card);
+  const savedId = await saveCard(card);
 
   revalidatePath("/");
   revalidatePath("/admin");
@@ -150,7 +150,7 @@ export async function toggleCardAction(formData: FormData) {
   const id = Number(value(formData, "id"));
   const active = value(formData, "active") === "1";
 
-  if (Number.isFinite(id)) setCardActive(id, active);
+  if (Number.isFinite(id)) await setCardActive(id, active);
 
   revalidatePath("/admin");
   redirect("/admin");
@@ -165,7 +165,7 @@ export async function updateProvisioningAction(formData: FormData) {
     rawStatus === "tested" ? "tested" : rawStatus === "programmed" ? "programmed" : "new";
 
   if (Number.isFinite(id)) {
-    setCardProvisioningStatus(id, status);
+    await setCardProvisioningStatus(id, status);
   }
 
   revalidatePath("/admin");
@@ -208,10 +208,10 @@ export async function importCardsAction(formData: FormData) {
       continue;
     }
 
-    const existing = getProfileByEmail(email);
+    const existing = await getProfileByEmail(email);
     let slug = existing?.slug || slugify(firstName + "-" + lastName) || "collaborateur";
     if (!existing) {
-      const slugOwner = getProfileBySlug(slug, { includeInactive: true });
+      const slugOwner = await getProfileBySlug(slug, { includeInactive: true });
       if (slugOwner) slug = slug + "-" + randomUUID().slice(0, 6);
     }
 
@@ -242,7 +242,7 @@ export async function importCardsAction(formData: FormData) {
       socialLinks: rowSocialLinks(row).length ? rowSocialLinks(row) : existing?.socialLinks
     };
 
-    saveCard(card);
+    await saveCard(card);
     if (existing) updated += 1;
     else created += 1;
   }
@@ -265,7 +265,7 @@ export async function saveBrandAction(formData: FormData) {
     logoUrl = await saveUploadedImage(logoFile);
   }
 
-  saveBrandConfig({ subsidiary, primaryColor, accentColor, logoUrl });
+  await saveBrandConfig({ subsidiary, primaryColor, accentColor, logoUrl });
 
   revalidatePath("/admin/filiales");
   revalidatePath("/admin");

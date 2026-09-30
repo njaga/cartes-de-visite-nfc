@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   const { token } = await context.params;
-  const profile = getProfileByNfcToken(token, { includeInactive: true });
+  const profile = await getProfileByNfcToken(token, { includeInactive: true });
 
   if (!profile) {
     return new Response("Carte introuvable", { status: 404 });

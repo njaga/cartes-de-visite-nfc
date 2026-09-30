@@ -9,7 +9,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   const { token } = await context.params;
-  const profile = getProfileByNfcToken(token);
+  const profile = await getProfileByNfcToken(token);
 
   if (!profile) {
     return NextResponse.redirect(new URL("/", request.url));
@@ -18,7 +18,7 @@ export async function GET(request: Request, context: RouteContext) {
   const requestUrl = new URL(request.url);
   const source = requestUrl.searchParams.get("src") === "qr" ? "qr" : "nfc";
 
-  recordScan(token, source, {
+  await recordScan(token, source, {
     userAgent: request.headers.get("user-agent"),
     referer: request.headers.get("referer")
   });

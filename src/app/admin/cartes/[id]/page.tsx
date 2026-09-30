@@ -22,7 +22,7 @@ export default async function EditCardPage({ params, searchParams }: EditCardPag
 
   const { id } = await params;
   const { saved } = await searchParams;
-  const card = getCardById(Number(id));
+  const card = await getCardById(Number(id));
 
   if (!card) notFound();
 

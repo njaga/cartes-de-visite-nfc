@@ -8,7 +8,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   const { slug } = await context.params;
-  const profile = getProfileBySlug(slug);
+  const profile = await getProfileBySlug(slug);
 
   if (!profile) {
     return new Response("Contact introuvable", { status: 404 });

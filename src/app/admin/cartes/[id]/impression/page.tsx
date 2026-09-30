@@ -11,10 +11,10 @@ type PrintPageProps = {
 export default async function PrintCardPage({ params }: PrintPageProps) {
   await requireAdmin();
   const { id } = await params;
-  const card = getCardById(Number(id));
+  const card = await getCardById(Number(id));
   if (!card) notFound();
 
-  const brand = getBrandConfig(card.subsidiary);
+  const brand = await getBrandConfig(card.subsidiary);
 
   return (
     <main className="admin-shell">

@@ -23,14 +23,14 @@ export default async function ProvisionCardPage({ params, searchParams }: Provis
 
   const { id } = await params;
   const { updated } = await searchParams;
-  const card = getCardById(Number(id));
+  const card = await getCardById(Number(id));
 
   if (!card) notFound();
 
   const baseUrl = getPublicSiteUrl();
   const nfcUrl = baseUrl + "/n/" + card.nfcToken;
   const fullName = card.firstName + " " + card.lastName;
-  const brand = getBrandConfig(card.subsidiary);
+  const brand = await getBrandConfig(card.subsidiary);
 
   return (
     <main className="provision-shell">
