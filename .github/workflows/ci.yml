@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - feat/vigilus-nfc-cards
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: https://card.groupevigilus.com
+          DB_PATH: ./data/ci.db
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASSWORD: ci-only-password
+          ADMIN_SESSION_SECRET: ci-only-secret-that-is-long-enough-for-build
