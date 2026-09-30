@@ -100,3 +100,39 @@ Après test sur iPhone et Android, verrouiller l'écriture du tag NFC. Ne jamais
 ## Profil de démonstration
 
 Au premier démarrage d'une base vide, un profil de démonstration est créé automatiquement. Ses données personnelles sont fictives et doivent être remplacées avant mise en production.
+
+
+## Workflow mobile de programmation NFC
+
+L'administration comporte désormais un écran dédié :
+
+\`\`\`
+/admin/cartes/<id>/programmer
+\`\`\`
+
+Depuis le téléphone :
+
+1. ouvrir la fiche du collaborateur dans l'administration ;
+2. toucher **Programmer le NFC** ;
+3. copier ou partager l'URL NFC affichée ;
+4. ouvrir NFC Tools ;
+5. **Écrire → Ajouter un enregistrement → URL / URI** ;
+6. coller l'URL ;
+7. lancer l'écriture puis approcher la carte NFC du téléphone ;
+8. revenir dans l'administration et marquer la carte comme **Programmée** ;
+9. tester physiquement la carte ;
+10. si le bon profil s'ouvre, marquer la carte **Programmée et testée**.
+
+Les statuts disponibles sont :
+
+- **À programmer** ;
+- **Programmée, à tester** ;
+- **Programmée et testée**.
+
+Le tableau de bord permet de voir immédiatement quelles cartes sont encore à préparer.
+
+## Utilisation mobile
+
+L'application expose un manifeste PWA et peut être ajoutée à l'écran d'accueil du téléphone. L'espace d'administration est responsive afin que la programmation puisse être réalisée directement à côté des cartes physiques.
+
+Le profil public propose également un accès WhatsApp. Le numéro WhatsApp peut être différent du téléphone portable ; s'il n'est pas renseigné, le portable peut être utilisé comme point de départ dans l'administration.

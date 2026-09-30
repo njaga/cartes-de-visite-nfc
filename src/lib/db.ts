@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import type { DigitalCard, SocialLink } from "@/lib/profiles";
+import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 import { seedProfiles } from "@/lib/profiles";
 
 type CardRow = {
@@ -9,6 +9,9 @@ type CardRow = {
   slug: string;
   nfc_token: string;
   nfc_mode: "profile" | "vcard";
+  nfc_status: NfcProvisioningStatus;
+  programmed_at: string | null;
+  tested_at: string | null;
   active: number;
   first_name: string;
   last_name: string;
@@ -16,6 +19,7 @@ type CardRow = {
   subsidiary: string;
   company: string;
   mobile: string | null;
+  whatsapp: string | null;
   phone: string | null;
   email: string;
   website: string;
@@ -39,6 +43,13 @@ function databasePath() {
   return path.join(process.cwd(), "data", "vigilus-cards.db");
 }
 
+function ensureColumn(database: Database.Database, name: string, definition: string) {
+  const columns = database.prepare("PRAGMA table_info(cards)").all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === name)) {
+    database.exec("ALTER TABLE cards ADD COLUMN " + name + " " + definition);
+  }
+}
+
 function initializeDatabase() {
   const filePath = databasePath();
   mkdirSync(path.dirname(filePath), { recursive: true });
@@ -53,9 +64,11 @@ function initializeDatabase() {
     "slug TEXT NOT NULL UNIQUE,",
     "nfc_token TEXT NOT NULL UNIQUE,",
     "nfc_mode TEXT NOT NULL DEFAULT 'profile' CHECK (nfc_mode IN ('profile', 'vcard')),",
+    "nfc_status TEXT NOT NULL DEFAULT 'new',",
+    "programmed_at TEXT, tested_at TEXT,",
     "active INTEGER NOT NULL DEFAULT 1,",
     "first_name TEXT NOT NULL, last_name TEXT NOT NULL, job_title TEXT NOT NULL,",
-    "subsidiary TEXT NOT NULL, company TEXT NOT NULL, mobile TEXT, phone TEXT,",
+    "subsidiary TEXT NOT NULL, company TEXT NOT NULL, mobile TEXT, whatsapp TEXT, phone TEXT,",
     "email TEXT NOT NULL, website TEXT NOT NULL, address TEXT NOT NULL,",
     "city TEXT NOT NULL, country TEXT NOT NULL, presentation TEXT, photo_url TEXT,",
     "social_links TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,",
@@ -71,21 +84,28 @@ function initializeDatabase() {
     "CREATE INDEX IF NOT EXISTS idx_scans_scanned_at ON scans(scanned_at);"
   ].join("\n"));
 
+  ensureColumn(database, "nfc_status", "TEXT NOT NULL DEFAULT 'new'");
+  ensureColumn(database, "programmed_at", "TEXT");
+  ensureColumn(database, "tested_at", "TEXT");
+  ensureColumn(database, "whatsapp", "TEXT");
+
   const count = database.prepare("SELECT COUNT(*) AS count FROM cards").get() as { count: number };
   if (count.count === 0) {
     const insert = database.prepare([
-      "INSERT INTO cards (slug,nfc_token,nfc_mode,active,first_name,last_name,job_title,",
-      "subsidiary,company,mobile,phone,email,website,address,city,country,presentation,photo_url,social_links)",
-      "VALUES (@slug,@nfcToken,@nfcMode,@active,@firstName,@lastName,@jobTitle,@subsidiary,@company,",
-      "@mobile,@phone,@email,@website,@address,@city,@country,@presentation,@photoUrl,@socialLinks)"
+      "INSERT INTO cards (slug,nfc_token,nfc_mode,nfc_status,active,first_name,last_name,job_title,",
+      "subsidiary,company,mobile,whatsapp,phone,email,website,address,city,country,presentation,photo_url,social_links)",
+      "VALUES (@slug,@nfcToken,@nfcMode,@nfcStatus,@active,@firstName,@lastName,@jobTitle,@subsidiary,@company,",
+      "@mobile,@whatsapp,@phone,@email,@website,@address,@city,@country,@presentation,@photoUrl,@socialLinks)"
     ].join(" "));
 
     const seed = database.transaction((profiles: DigitalCard[]) => {
       for (const profile of profiles) {
         insert.run({
           ...profile,
+          nfcStatus: profile.nfcStatus ?? "new",
           active: profile.active ? 1 : 0,
           mobile: profile.mobile ?? null,
+          whatsapp: profile.whatsapp ?? null,
           phone: profile.phone ?? null,
           presentation: profile.presentation ?? null,
           photoUrl: profile.photoUrl ?? null,
@@ -124,6 +144,9 @@ function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
     slug: row.slug,
     nfcToken: row.nfc_token,
     nfcMode: row.nfc_mode,
+    nfcStatus: row.nfc_status || "new",
+    programmedAt: row.programmed_at ?? undefined,
+    testedAt: row.tested_at ?? undefined,
     active: Boolean(row.active),
     firstName: row.first_name,
     lastName: row.last_name,
@@ -131,6 +154,7 @@ function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
     subsidiary: row.subsidiary,
     company: row.company,
     mobile: row.mobile ?? undefined,
+    whatsapp: row.whatsapp ?? undefined,
     phone: row.phone ?? undefined,
     email: row.email,
     website: row.website,
@@ -175,6 +199,7 @@ export function saveCard(card: DigitalCard) {
     slug: card.slug,
     nfcToken: card.nfcToken,
     nfcMode: card.nfcMode,
+    nfcStatus: card.nfcStatus ?? "new",
     active: card.active ? 1 : 0,
     firstName: card.firstName,
     lastName: card.lastName,
@@ -182,6 +207,7 @@ export function saveCard(card: DigitalCard) {
     subsidiary: card.subsidiary,
     company: card.company,
     mobile: card.mobile || null,
+    whatsapp: card.whatsapp || null,
     phone: card.phone || null,
     email: card.email,
     website: card.website,
@@ -195,9 +221,9 @@ export function saveCard(card: DigitalCard) {
 
   if (card.id) {
     db().prepare([
-      "UPDATE cards SET slug=@slug,nfc_token=@nfcToken,nfc_mode=@nfcMode,active=@active,",
-      "first_name=@firstName,last_name=@lastName,job_title=@jobTitle,subsidiary=@subsidiary,",
-      "company=@company,mobile=@mobile,phone=@phone,email=@email,website=@website,address=@address,",
+      "UPDATE cards SET slug=@slug,nfc_token=@nfcToken,nfc_mode=@nfcMode,nfc_status=@nfcStatus,active=@active,",
+      "first_name=@firstName,last_name=@lastName,job_title=@jobTitle,subsidiary=@subsidiary,company=@company,",
+      "mobile=@mobile,whatsapp=@whatsapp,phone=@phone,email=@email,website=@website,address=@address,",
       "city=@city,country=@country,presentation=@presentation,photo_url=@photoUrl,social_links=@socialLinks,",
       "updated_at=CURRENT_TIMESTAMP WHERE id=@id"
     ].join(" ")).run(values);
@@ -205,10 +231,10 @@ export function saveCard(card: DigitalCard) {
   }
 
   const result = db().prepare([
-    "INSERT INTO cards (slug,nfc_token,nfc_mode,active,first_name,last_name,job_title,subsidiary,company,",
-    "mobile,phone,email,website,address,city,country,presentation,photo_url,social_links)",
-    "VALUES (@slug,@nfcToken,@nfcMode,@active,@firstName,@lastName,@jobTitle,@subsidiary,@company,",
-    "@mobile,@phone,@email,@website,@address,@city,@country,@presentation,@photoUrl,@socialLinks)"
+    "INSERT INTO cards (slug,nfc_token,nfc_mode,nfc_status,active,first_name,last_name,job_title,subsidiary,company,",
+    "mobile,whatsapp,phone,email,website,address,city,country,presentation,photo_url,social_links)",
+    "VALUES (@slug,@nfcToken,@nfcMode,@nfcStatus,@active,@firstName,@lastName,@jobTitle,@subsidiary,@company,",
+    "@mobile,@whatsapp,@phone,@email,@website,@address,@city,@country,@presentation,@photoUrl,@socialLinks)"
   ].join(" ")).run(values);
 
   return Number(result.lastInsertRowid);
@@ -216,6 +242,26 @@ export function saveCard(card: DigitalCard) {
 
 export function setCardActive(id: number, active: boolean) {
   db().prepare("UPDATE cards SET active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(active ? 1 : 0, id);
+}
+
+export function setCardProvisioningStatus(id: number, status: NfcProvisioningStatus) {
+  if (status === "new") {
+    db().prepare(
+      "UPDATE cards SET nfc_status='new',programmed_at=NULL,tested_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?"
+    ).run(id);
+    return;
+  }
+
+  if (status === "programmed") {
+    db().prepare(
+      "UPDATE cards SET nfc_status='programmed',programmed_at=COALESCE(programmed_at,CURRENT_TIMESTAMP),tested_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?"
+    ).run(id);
+    return;
+  }
+
+  db().prepare(
+    "UPDATE cards SET nfc_status='tested',programmed_at=COALESCE(programmed_at,CURRENT_TIMESTAMP),tested_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?"
+  ).run(id);
 }
 
 export function recordScan(
@@ -239,9 +285,10 @@ export function recordScan(
 export function getDashboardStats() {
   const totalCards = (db().prepare("SELECT COUNT(*) AS count FROM cards").get() as { count: number }).count;
   const activeCards = (db().prepare("SELECT COUNT(*) AS count FROM cards WHERE active=1").get() as { count: number }).count;
+  const readyCards = (db().prepare("SELECT COUNT(*) AS count FROM cards WHERE nfc_status='tested'").get() as { count: number }).count;
   const scansToday = (db().prepare("SELECT COUNT(*) AS count FROM scans WHERE date(scanned_at)=date('now')").get() as { count: number }).count;
   const scans7Days = (db().prepare("SELECT COUNT(*) AS count FROM scans WHERE scanned_at>=datetime('now','-7 days')").get() as { count: number }).count;
-  return { totalCards, activeCards, scansToday, scans7Days };
+  return { totalCards, activeCards, readyCards, scansToday, scans7Days };
 }
 
 export function getRecentScans(limit = 12) {

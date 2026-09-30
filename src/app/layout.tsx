@@ -6,13 +6,19 @@ export const metadata: Metadata = {
     default: "Vigilus Digital Cards",
     template: "%s | Vigilus"
   },
-  description: "Cartes de visite digitales NFC du Groupe Vigilus."
+  description: "Cartes de visite digitales NFC du Groupe Vigilus.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Vigilus Cards",
+    statusBarStyle: "default"
+  }
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#ffffff"
+  themeColor: "#13a3e3"
 };
 
 export default function RootLayout({

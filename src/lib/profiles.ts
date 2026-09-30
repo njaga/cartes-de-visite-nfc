@@ -3,11 +3,16 @@ export type SocialLink = {
   url: string;
 };
 
+export type NfcProvisioningStatus = "new" | "programmed" | "tested";
+
 export type DigitalCard = {
   id?: number;
   slug: string;
   nfcToken: string;
   nfcMode: "profile" | "vcard";
+  nfcStatus?: NfcProvisioningStatus;
+  programmedAt?: string;
+  testedAt?: string;
   active: boolean;
   firstName: string;
   lastName: string;
@@ -15,6 +20,7 @@ export type DigitalCard = {
   subsidiary: string;
   company: string;
   mobile?: string;
+  whatsapp?: string;
   phone?: string;
   email: string;
   website: string;
@@ -33,6 +39,7 @@ export const seedProfiles: DigitalCard[] = [
     slug: "demo-vigilus",
     nfcToken: "vig-demo-001",
     nfcMode: "profile",
+    nfcStatus: "new",
     active: true,
     firstName: "Awa",
     lastName: "Ndiaye",
@@ -40,6 +47,7 @@ export const seedProfiles: DigitalCard[] = [
     subsidiary: "Vigilus Sénégal",
     company: "VIGILUS Group",
     mobile: "+221 77 000 00 00",
+    whatsapp: "+221 77 000 00 00",
     phone: "+221 33 867 77 32",
     email: "awa.ndiaye@example.com",
     website: "https://www.groupevigilus.com",

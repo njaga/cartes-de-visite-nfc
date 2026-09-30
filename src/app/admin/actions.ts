@@ -10,8 +10,14 @@ import {
   requireAdmin,
   verifyAdminCredentials
 } from "@/lib/admin-auth";
-import { getCardById, getProfileBySlug, saveCard, setCardActive } from "@/lib/db";
-import type { DigitalCard, SocialLink } from "@/lib/profiles";
+import {
+  getCardById,
+  getProfileBySlug,
+  saveCard,
+  setCardActive,
+  setCardProvisioningStatus
+} from "@/lib/db";
+import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 
 function value(formData: FormData, key: string) {
   const raw = formData.get(key);
@@ -81,6 +87,9 @@ export async function saveCardAction(formData: FormData) {
     slug,
     nfcToken: existing?.nfcToken || "vig-" + randomUUID().replace(/-/g, "").slice(0, 14),
     nfcMode: value(formData, "nfcMode") === "vcard" ? "vcard" : "profile",
+    nfcStatus: existing?.nfcStatus ?? "new",
+    programmedAt: existing?.programmedAt,
+    testedAt: existing?.testedAt,
     active: formData.get("active") === "on",
     firstName,
     lastName,
@@ -88,6 +97,7 @@ export async function saveCardAction(formData: FormData) {
     subsidiary: value(formData, "subsidiary"),
     company: value(formData, "company") || "VIGILUS Group",
     mobile: value(formData, "mobile") || undefined,
+    whatsapp: value(formData, "whatsapp") || undefined,
     phone: value(formData, "phone") || undefined,
     email: value(formData, "email"),
     website: value(formData, "website"),
@@ -117,4 +127,21 @@ export async function toggleCardAction(formData: FormData) {
 
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+export async function updateProvisioningAction(formData: FormData) {
+  await requireAdmin();
+
+  const id = Number(value(formData, "id"));
+  const rawStatus = value(formData, "status");
+  const status: NfcProvisioningStatus =
+    rawStatus === "tested" ? "tested" : rawStatus === "programmed" ? "programmed" : "new";
+
+  if (Number.isFinite(id)) {
+    setCardProvisioningStatus(id, status);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/cartes/" + id);
+  redirect("/admin/cartes/" + id + "/programmer?updated=1");
 }

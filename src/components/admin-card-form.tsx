@@ -52,6 +52,7 @@ export function AdminCardForm({ card }: { card?: DigitalCard }) {
         <div className="admin-section-heading"><div><span>Contact</span><h2>Coordonnées</h2></div></div>
         <div className="admin-grid admin-grid-2">
           <label><span>Téléphone portable</span><input name="mobile" type="tel" defaultValue={card?.mobile ?? ""} /></label>
+          <label><span>WhatsApp</span><input name="whatsapp" type="tel" defaultValue={card?.whatsapp ?? card?.mobile ?? ""} placeholder="+221 77 000 00 00" /></label>
           <label><span>Téléphone fixe</span><input name="phone" type="tel" defaultValue={card?.phone ?? "+221 33 867 77 32"} /></label>
           <label><span>E-mail *</span><input name="email" type="email" required defaultValue={card?.email ?? ""} /></label>
           <label><span>Site web *</span><input name="website" type="url" required defaultValue={card?.website ?? "https://www.groupevigilus.com"} /></label>

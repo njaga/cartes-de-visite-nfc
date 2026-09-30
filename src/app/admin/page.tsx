@@ -13,6 +13,12 @@ function formatScanDate(value: string) {
   }).format(new Date(value.replace(" ", "T") + "Z"));
 }
 
+function nfcStatusLabel(status: string | undefined) {
+  if (status === "tested") return "Testée";
+  if (status === "programmed") return "À tester";
+  return "À programmer";
+}
+
 export default async function AdminDashboardPage() {
   const admin = await requireAdmin();
   const cards = getAllProfiles({ includeInactive: true });
@@ -38,36 +44,52 @@ export default async function AdminDashboardPage() {
           <div>
             <span>Vue d’ensemble</span>
             <h1>Cartes de visite digitales</h1>
-            <p>Gérez les cartes physiques sans avoir à les reprogrammer.</p>
+            <p>Gérez les cartes, leur programmation NFC et les scans depuis un seul espace.</p>
           </div>
           <Link className="admin-primary-button" href="/admin/cartes/nouvelle">+ Nouvelle carte</Link>
         </div>
 
         <div className="admin-stats">
           <article><span>Cartes</span><strong>{stats.totalCards}</strong><small>{stats.activeCards} actives</small></article>
+          <article><span>Cartes validées</span><strong>{stats.readyCards}</strong><small>NFC programmé et testé</small></article>
           <article><span>Scans aujourd’hui</span><strong>{stats.scansToday}</strong><small>NFC + QR</small></article>
           <article><span>Scans sur 7 jours</span><strong>{stats.scans7Days}</strong><small>activité récente</small></article>
-          <article>
-            <span>Taux actif</span>
-            <strong>{stats.totalCards ? Math.round((stats.activeCards / stats.totalCards) * 100) : 0}%</strong>
-            <small>du parc de cartes</small>
-          </article>
         </div>
 
         <section className="admin-panel">
           <div className="admin-panel-heading"><div><span>Parc NFC</span><h2>Collaborateurs</h2></div></div>
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Collaborateur</th><th>Filiale</th><th>Poste</th><th>État</th><th /></tr></thead>
+              <thead>
+                <tr>
+                  <th>Collaborateur</th>
+                  <th>Filiale</th>
+                  <th>NFC</th>
+                  <th>État</th>
+                  <th />
+                </tr>
+              </thead>
               <tbody>
                 {cards.map((card) => (
                   <tr key={card.id}>
-                    <td><strong>{card.firstName} {card.lastName}</strong><small>{card.email}</small></td>
+                    <td>
+                      <strong>{card.firstName} {card.lastName}</strong>
+                      <small>{card.jobTitle}</small>
+                    </td>
                     <td>{card.subsidiary}</td>
-                    <td>{card.jobTitle}</td>
-                    <td><span className={card.active ? "status-active" : "status-inactive"}>{card.active ? "Active" : "Désactivée"}</span></td>
+                    <td>
+                      <span className={"nfc-status-badge nfc-status-" + (card.nfcStatus ?? "new")}>
+                        {nfcStatusLabel(card.nfcStatus)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={card.active ? "status-active" : "status-inactive"}>
+                        {card.active ? "Active" : "Désactivée"}
+                      </span>
+                    </td>
                     <td>
                       <div className="admin-row-actions">
+                        <Link href={"/admin/cartes/" + card.id + "/programmer"}>Programmer</Link>
                         <Link href={"/admin/cartes/" + card.id}>Modifier</Link>
                         <form action={toggleCardAction}>
                           <input type="hidden" name="id" value={card.id} />
