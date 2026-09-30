@@ -371,7 +371,7 @@ async function initializeDatabase() {
     "languages=CASE WHEN languages='[]'::jsonb THEN $4::jsonb ELSE languages END," +
     "primary_cta_label=COALESCE(primary_cta_label,$5)," +
     "primary_cta_url=COALESCE(primary_cta_url,$6)," +
-    "lead_form_enabled=TRUE " +
+    "lead_form_enabled=CASE WHEN hero_title IS NULL THEN TRUE ELSE lead_form_enabled END " +
     "WHERE slug='demo-vigilus'",
     [
       "Des solutions adaptées à vos enjeux professionnels.",
@@ -385,43 +385,29 @@ async function initializeDatabase() {
 
   await query(
     "INSERT INTO card_services (card_id,title,description,url,sort_order) " +
-    "SELECT id,'Sécurité humaine','Gardiennage, sécurité événementielle et dispositifs adaptés à vos environnements.'," +
-    "'https://vigilus-securite.com',0 FROM cards WHERE slug='demo-vigilus' " +
-    "AND NOT EXISTS (SELECT 1 FROM card_services s WHERE s.card_id=cards.id)"
-  );
-  await query(
-    "INSERT INTO card_services (card_id,title,description,url,sort_order) " +
-    "SELECT id,'Sécurité électronique','Vidéosurveillance, contrôle d’accès, détection et solutions intégrées.'," +
-    "'https://technologie.vigilus-securite.com',1 FROM cards WHERE slug='demo-vigilus' " +
-    "AND (SELECT COUNT(*) FROM card_services s WHERE s.card_id=cards.id)=1"
-  );
-  await query(
-    "INSERT INTO card_services (card_id,title,description,url,sort_order) " +
-    "SELECT id,'Facility Management','Nettoyage, entretien et gestion de services supports pour vos sites.'," +
-    "'https://vigilus-facilities.com',2 FROM cards WHERE slug='demo-vigilus' " +
-    "AND (SELECT COUNT(*) FROM card_services s WHERE s.card_id=cards.id)=2"
-  );
-  await query(
-    "INSERT INTO card_services (card_id,title,description,url,sort_order) " +
-    "SELECT id,'Mobilité professionnelle','Location avec chauffeur, transferts et accompagnement de vos déplacements.'," +
-    "'https://locationvoituredakar.com',3 FROM cards WHERE slug='demo-vigilus' " +
-    "AND (SELECT COUNT(*) FROM card_services s WHERE s.card_id=cards.id)=3"
+    "SELECT c.id,v.title,v.description,v.url,v.sort_order FROM cards c CROSS JOIN (" +
+      "VALUES " +
+      "('Sécurité humaine','Gardiennage, sécurité événementielle et dispositifs adaptés à vos environnements.','https://vigilus-securite.com',0)," +
+      "('Sécurité électronique','Vidéosurveillance, contrôle d’accès, détection et solutions intégrées.','https://technologie.vigilus-securite.com',1)," +
+      "('Facility Management','Nettoyage, entretien et gestion de services supports pour vos sites.','https://vigilus-facilities.com',2)," +
+      "('Mobilité professionnelle','Location avec chauffeur, transferts et accompagnement de vos déplacements.','https://locationvoituredakar.com',3)" +
+    ") AS v(title,description,url,sort_order) " +
+    "WHERE c.slug='demo-vigilus' AND NOT EXISTS (" +
+      "SELECT 1 FROM card_services s WHERE s.card_id=c.id" +
+    ")"
   );
 
   await query(
     "INSERT INTO card_highlights (card_id,value,label,sort_order) " +
-    "SELECT id,'Afrique de l’Ouest','Présence régionale',0 FROM cards WHERE slug='demo-vigilus' " +
-    "AND NOT EXISTS (SELECT 1 FROM card_highlights h WHERE h.card_id=cards.id)"
-  );
-  await query(
-    "INSERT INTO card_highlights (card_id,value,label,sort_order) " +
-    "SELECT id,'Multi-services','Solutions intégrées',1 FROM cards WHERE slug='demo-vigilus' " +
-    "AND (SELECT COUNT(*) FROM card_highlights h WHERE h.card_id=cards.id)=1"
-  );
-  await query(
-    "INSERT INTO card_highlights (card_id,value,label,sort_order) " +
-    "SELECT id,'B2B','Accompagnement sur mesure',2 FROM cards WHERE slug='demo-vigilus' " +
-    "AND (SELECT COUNT(*) FROM card_highlights h WHERE h.card_id=cards.id)=2"
+    "SELECT c.id,v.value,v.label,v.sort_order FROM cards c CROSS JOIN (" +
+      "VALUES " +
+      "('Afrique de l’Ouest','Présence régionale',0)," +
+      "('Multi-services','Solutions intégrées',1)," +
+      "('B2B','Accompagnement sur mesure',2)" +
+    ") AS v(value,label,sort_order) " +
+    "WHERE c.slug='demo-vigilus' AND NOT EXISTS (" +
+      "SELECT 1 FROM card_highlights h WHERE h.card_id=c.id" +
+    ")"
   );
 
   await query(
