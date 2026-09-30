@@ -164,7 +164,7 @@ export async function GET(request: Request, context: RouteContext) {
   if (requestUrl.searchParams.get("download") === "1") {
     headers.set(
       "Content-Disposition",
-      'attachment; filename="' + card.slug + "-" + side + ".svg"'
+      'attachment; filename="' + card.slug + "-" + side + '.svg"'
     );
   }
 
