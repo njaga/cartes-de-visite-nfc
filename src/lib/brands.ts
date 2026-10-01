@@ -1,8 +1,11 @@
+import type { SocialLink } from "@/lib/profiles";
+
 export type BrandConfig = {
   subsidiary: string;
   primaryColor: string;
   accentColor: string;
   logoUrl?: string;
+  socialLinks?: SocialLink[];
 };
 
 export const BRAND_LOGOS = {
@@ -15,6 +18,13 @@ export const BRAND_LOGOS = {
 
 export const VIGILUS_LOGO_URL = BRAND_LOGOS.group;
 
+// Official links published at https://vigilus-facilities.com/.
+export const VIGILUS_SOCIAL_LINKS: SocialLink[] = [
+  { label: "Facebook", url: "https://www.facebook.com/vigilusgroupe" },
+  { label: "LinkedIn", url: "https://www.linkedin.com/company/vigilus-facilities" },
+  { label: "Instagram", url: "https://www.instagram.com/vigilusfacilities" }
+];
+
 export const defaultBrandConfigs: BrandConfig[] = [
   { subsidiary: "Vigilus Sénégal", primaryColor: "#13a3e3", accentColor: "#c30c29", logoUrl: BRAND_LOGOS.group },
   { subsidiary: "Vigilus Côte d’Ivoire", primaryColor: "#13a3e3", accentColor: "#c30c29", logoUrl: BRAND_LOGOS.group },
@@ -26,7 +36,7 @@ export const defaultBrandConfigs: BrandConfig[] = [
   { subsidiary: "Vigilus International", primaryColor: "#13a3e3", accentColor: "#c30c29", logoUrl: BRAND_LOGOS.international },
   { subsidiary: "Vigilus Dubaï", primaryColor: "#13a3e3", accentColor: "#c30c29", logoUrl: BRAND_LOGOS.international },
   { subsidiary: "VIGILUS Group", primaryColor: "#13a3e3", accentColor: "#c30c29", logoUrl: BRAND_LOGOS.group }
-];
+].map((brand) => ({ ...brand, socialLinks: VIGILUS_SOCIAL_LINKS.map((link) => ({ ...link })) }));
 
 export function defaultBrandFor(subsidiary: string): BrandConfig {
   return (

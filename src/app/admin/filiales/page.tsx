@@ -21,7 +21,7 @@ export default async function SubsidiariesPage({ searchParams }: SubsidiariesPag
             <a className="admin-back" href="/admin">← Retour au tableau de bord</a>
             <span>Identité visuelle</span>
             <h1>Filiales</h1>
-            <p>Définissez le logo et les couleurs utilisés sur les profils et cartes imprimées.</p>
+            <p>Définissez le logo, les couleurs et les pages sociales de chaque filiale.</p>
           </div>
         </div>
 
@@ -70,6 +70,23 @@ export default async function SubsidiariesPage({ searchParams }: SubsidiariesPag
                 <span>Ou importer un nouveau logo</span>
                 <input name="logoFile" type="file" accept="image/jpeg,image/png,image/webp" />
               </label>
+
+              <fieldset className="brand-social-fields">
+                <legend>Suivez-nous · pages de l’entreprise</legend>
+                <label>
+                  <span>Facebook de l’entreprise</span>
+                  <input name="companyFacebook" type="url" defaultValue={brand.socialLinks?.find((link) => link.label === "Facebook")?.url ?? ""} placeholder="https://www.facebook.com/..." />
+                </label>
+                <label>
+                  <span>LinkedIn de l’entreprise</span>
+                  <input name="companyLinkedin" type="url" defaultValue={brand.socialLinks?.find((link) => link.label === "LinkedIn")?.url ?? ""} placeholder="https://www.linkedin.com/company/..." />
+                </label>
+                <label>
+                  <span>Instagram de l’entreprise</span>
+                  <input name="companyInstagram" type="url" defaultValue={brand.socialLinks?.find((link) => link.label === "Instagram")?.url ?? ""} placeholder="https://www.instagram.com/..." />
+                </label>
+                <p className="field-hint">Affichés dans « Suivez-nous ». Effacez un lien pour le masquer. Le LinkedIn personnel se renseigne sur la fiche du collaborateur.</p>
+              </fieldset>
 
               <button type="submit">Enregistrer la filiale</button>
             </form>

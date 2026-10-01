@@ -5,6 +5,11 @@ export type SocialLink = {
 
 export type NfcProvisioningStatus = "new" | "programmed" | "tested";
 
+export type ServiceImage = {
+  name: string;
+  imageUrl: string;
+};
+
 export type DigitalCard = {
   id?: number;
   slug: string;
@@ -30,8 +35,12 @@ export type DigitalCard = {
   country: string;
   presentation?: string;
   photoUrl?: string;
+  coverUrl?: string;
+  companyPresentation?: string;
+  appointmentUrl?: string;
   socialLinks?: SocialLink[];
   services?: string[];
+  serviceImages?: ServiceImage[];
   commercialCtaLabel?: string;
   commercialCtaUrl?: string;
   offerTitle?: string;
@@ -67,6 +76,7 @@ export const seedProfiles: DigitalCard[] = [
     address: "VDN, Sacré-Cœur 3",
     city: "Dakar",
     country: "Sénégal",
+    photoUrl: "/profile-images/collaborateur-demo.webp",
     presentation:
       "J'accompagne les entreprises et institutions dans la mise en place de solutions Vigilus adaptées à leurs enjeux de sécurité, de facility management et de mobilité.",
     services: [

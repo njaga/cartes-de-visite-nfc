@@ -21,6 +21,9 @@ import {
   setCardProvisioningStatus
 } from "@/lib/db";
 import { saveUploadedImage } from "@/lib/uploads";
+import { optionalUrl, serviceList, servicesFromForm } from "@/lib/card-form";
+import { optionalCalendarUrl } from "@/lib/profile-appointment";
+import { assertCardUploadLimit } from "@/lib/upload-limits";
 import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
 
 function value(formData: FormData, key: string) {
@@ -36,14 +39,6 @@ function slugify(input: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 70);
-}
-
-function serviceList(raw: string) {
-  return raw
-    .split(/[\n,;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 8);
 }
 
 function socialLinks(formData: FormData): SocialLink[] {
@@ -97,6 +92,7 @@ export async function logoutAdmin() {
 
 export async function saveCardAction(formData: FormData) {
   await requireAdmin();
+  assertCardUploadLimit(formData);
 
   const idRaw = value(formData, "id");
   const id = idRaw ? Number(idRaw) : undefined;
@@ -116,6 +112,13 @@ export async function saveCardAction(formData: FormData) {
   if (photoFile instanceof File && photoFile.size > 0) {
     photoUrl = await saveUploadedImage(photoFile);
   }
+
+  let coverUrl = optionalUrl(value(formData, "coverUrl"), true);
+  const coverFile = formData.get("coverFile");
+  if (coverFile instanceof File && coverFile.size > 0) {
+    coverUrl = await saveUploadedImage(coverFile);
+  }
+  const serviceFields = await servicesFromForm(formData, saveUploadedImage, existing?.serviceImages);
 
   const card: DigitalCard = {
     id: existing?.id,
@@ -142,8 +145,11 @@ export async function saveCardAction(formData: FormData) {
     country: value(formData, "country"),
     presentation: value(formData, "presentation") || undefined,
     photoUrl,
+    coverUrl,
+    companyPresentation: value(formData, "companyPresentation") || undefined,
+    appointmentUrl: optionalCalendarUrl(value(formData, "appointmentUrl")),
     socialLinks: socialLinks(formData),
-    services: serviceList(value(formData, "services")),
+    ...serviceFields,
     commercialCtaLabel: value(formData, "commercialCtaLabel") || undefined,
     commercialCtaUrl: value(formData, "commercialCtaUrl") || undefined,
     offerTitle: value(formData, "offerTitle") || undefined,
@@ -260,8 +266,12 @@ export async function importCardsAction(formData: FormData) {
       country: cell(row, "Pays", "Country") || existing?.country || "Sénégal",
       presentation: cell(row, "Présentation", "Presentation") || existing?.presentation,
       photoUrl: cell(row, "Photo URL", "Photo") || existing?.photoUrl,
+      coverUrl: optionalUrl(cell(row, "Couverture URL", "Cover URL"), true) || existing?.coverUrl,
+      companyPresentation: cell(row, "Présentation entreprise", "Company presentation") || existing?.companyPresentation,
+      appointmentUrl: optionalCalendarUrl(cell(row, "Rendez-vous URL", "Appointment URL")) || existing?.appointmentUrl,
       socialLinks: rowSocialLinks(row).length ? rowSocialLinks(row) : existing?.socialLinks,
       services: importedServices.length ? importedServices : existing?.services,
+      serviceImages: existing?.serviceImages,
       commercialCtaLabel: cell(row, "CTA commercial", "CTA label") || existing?.commercialCtaLabel,
       commercialCtaUrl: cell(row, "Lien CTA", "CTA URL") || existing?.commercialCtaUrl,
       offerTitle: cell(row, "Titre offre", "Offer title") || existing?.offerTitle,
@@ -296,9 +306,16 @@ export async function saveBrandAction(formData: FormData) {
     logoUrl = await saveUploadedImage(logoFile);
   }
 
-  await saveBrandConfig({ subsidiary, primaryColor, accentColor, logoUrl });
+  const companySocialLinks: SocialLink[] = [
+    { label: "Facebook", url: optionalUrl(value(formData, "companyFacebook")) || "" },
+    { label: "LinkedIn", url: optionalUrl(value(formData, "companyLinkedin")) || "" },
+    { label: "Instagram", url: optionalUrl(value(formData, "companyInstagram")) || "" }
+  ].filter((link) => Boolean(link.url));
+
+  await saveBrandConfig({ subsidiary, primaryColor, accentColor, logoUrl, socialLinks: companySocialLinks });
 
   revalidatePath("/admin/filiales");
   revalidatePath("/admin");
+  revalidatePath("/p/[slug]", "page");
   redirect("/admin/filiales?saved=" + encodeURIComponent(subsidiary));
 }

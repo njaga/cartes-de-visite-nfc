@@ -1,420 +1,530 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
+import {
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowRight,
+  ArrowUpRight,
+  Building2,
+  Globe2,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  UserRoundPlus,
+} from "lucide-react";
 import { ProfileShareButton } from "@/components/profile-share-button";
+import { ProfileAppointment } from "@/components/profile-appointment";
+import { ProfileImage } from "@/components/profile-image";
+import { ProfileSocialIcon } from "@/components/profile-social-icon";
 import { getBrandConfig, getProfileBySlug } from "@/lib/db";
+import { serviceImageFor } from "@/lib/profile-visuals";
+import { calendarUrl, contactPhone } from "@/lib/profile-appointment";
+import "./profile.css";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = {
-  params: Promise<{ slug: string }>;
-};
-
-function PhoneIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.58.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.6 21 3 13.4 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .57 3.58 1 1 0 0 1-.25 1z" />
-    </svg>
-  );
-}
-
-function MailIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 2 8 6 8-6" />
-    </svg>
-  );
-}
-
-function WebIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
-    </svg>
-  );
-}
-
-function ContactIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="8" cy="8" r="3" />
-      <path d="M2 20c.5-4 2.5-6 6-6s5.5 2 6 6M17 8v6M14 11h6" />
-    </svg>
-  );
-}
-
-function WhatsAppIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M20 11.6a8 8 0 0 1-11.8 7l-4.2 1.1 1.1-4.1A8 8 0 1 1 20 11.6Z" />
-      <path d="M8.5 8.3c.2-.4.4-.4.7-.4h.4c.2 0 .3.1.4.4l.8 1.8c.1.3 0 .5-.2.7l-.6.7c.8 1.5 1.8 2.5 3.3 3.2l.6-.8c.2-.2.4-.3.7-.2l1.9.9c.3.1.4.3.4.5 0 .8-.5 1.5-1.2 1.8-.6.3-1.5.4-2.8-.1-1.7-.6-3.1-1.7-4.3-3.2-1.1-1.4-1.7-2.9-1.7-4 0-.6.2-1 .4-1.3Z" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
-      <circle cx="12" cy="10" r="2.5" />
-    </svg>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 12h14M14 7l5 5-5 5" />
-    </svg>
-  );
-}
-
-function ExternalIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M14 5h5v5M19 5l-9 9" />
-      <path d="M19 13v6H5V5h6" />
-    </svg>
-  );
-}
-
-function DocumentIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 3h8l4 4v14H6z" />
-      <path d="M14 3v5h5M9 13h6M9 17h6" />
-    </svg>
-  );
-}
-
-function whatsAppHref(number: string, message?: string) {
-  const base = "https://wa.me/" + number.replace(/\D/g, "");
-  return message ? base + "?text=" + encodeURIComponent(message) : base;
-}
-
-function mapsHref(address: string, city: string, country: string) {
-  const query = [address, city, country].filter(Boolean).join(", ");
-  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
-}
+type PageProps = { params: Promise<{ slug: string }> };
 
 function offerIsActive(startDate?: string, endDate?: string) {
   const today = new Date().toISOString().slice(0, 10);
-  if (startDate && startDate > today) return false;
-  if (endDate && endDate < today) return false;
-  return true;
+  return !(startDate && startDate > today) && !(endDate && endDate < today);
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const profile = await getProfileBySlug(slug);
-
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const profile = await getProfileBySlug((await params).slug);
   if (!profile) return { title: "Profil introuvable" };
-
   return {
-    title: profile.firstName + " " + profile.lastName,
-    description: profile.jobTitle + " — " + profile.subsidiary,
-    robots: {
-      index: false,
-      follow: false
-    }
+    title: `${profile.firstName} ${profile.lastName}`,
+    description: `${profile.jobTitle} — ${profile.subsidiary}`,
+    robots: { index: false, follow: false },
   };
 }
 
 export default async function ProfilePage({ params }: PageProps) {
-  const { slug } = await params;
-  const profile = await getProfileBySlug(slug);
+  const profile = await getProfileBySlug((await params).slug);
   if (!profile) notFound();
-
   const brand = await getBrandConfig(profile.subsidiary);
-  const fullName = profile.firstName + " " + profile.lastName;
+  const fullName = `${profile.firstName} ${profile.lastName}`;
   const initials = (profile.firstName[0] ?? "") + (profile.lastName[0] ?? "");
   const whatsapp = profile.whatsapp || profile.mobile;
-  const whatsappHref = whatsapp
-    ? whatsAppHref(whatsapp, profile.whatsappMessage)
+  const whatsappNumber = contactPhone(whatsapp);
+  const whatsappHref = whatsappNumber
+    ? `https://wa.me/${whatsappNumber}${profile.whatsappMessage ? `?text=${encodeURIComponent(profile.whatsappMessage)}` : ""}`
     : undefined;
-  const location = [profile.city, profile.country].filter(Boolean).join(" · ");
+  const location = [profile.city, profile.country].filter(Boolean).join(", ");
+  const address = [profile.address, profile.city, profile.country]
+    .filter(Boolean)
+    .join(", ");
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  const logoUrl = brand.logoUrl || "/branding/vigilus-groupe-sa.png";
+  const vcardHref = `/p/${profile.slug}/contact.vcf`;
+  const services = profile.services ?? [];
   const showOffer =
     Boolean(profile.offerTitle || profile.offerText) &&
     offerIsActive(profile.offerStartDate, profile.offerEndDate);
-  const hasCommercial =
-    Boolean(profile.services?.length) ||
-    Boolean(profile.commercialCtaLabel && profile.commercialCtaUrl) ||
-    Boolean(profile.brochureUrl) ||
-    showOffer;
-
+  const appointmentProps = {
+    name: fullName,
+    email: profile.email,
+    whatsapp,
+    appointmentUrl: profile.appointmentUrl,
+  };
   const themeStyle = {
     "--profile-primary": brand.primaryColor,
-    "--profile-accent": brand.accentColor
+    "--profile-accent": brand.accentColor,
   } as CSSProperties;
 
-  const secondaryMobileHref = whatsappHref
-    ? whatsappHref
-    : profile.mobile
-      ? "tel:" + profile.mobile.replace(/\s/g, "")
-      : "mailto:" + profile.email;
-
-  const secondaryMobileLabel = whatsappHref ? "WhatsApp" : profile.mobile ? "Appeler" : "E-mail";
-
   return (
-    <main className="public-profile-shell" style={themeStyle}>
-      <div className="public-profile-frame">
-        <header className="public-profile-topbar">
-          <div className="public-profile-brand">
-            <img
-              src={brand.logoUrl || "/branding/vigilus-groupe-sa.png"}
-              alt={profile.subsidiary}
+    <main className="vp-shell" style={themeStyle}>
+      <div className="vp-frame">
+        <header className="vp-topbar">
+          <a className="vp-brand" href="#profil" aria-label="Revenir au profil">
+            <Image
+              src={logoUrl}
+              alt={profile.company}
+              width={150}
+              height={54}
+              unoptimized
             />
-          </div>
-          <div className="public-profile-topmeta">
-            <span>Carte professionnelle</span>
-            <i aria-hidden="true" />
-            <strong>{profile.subsidiary}</strong>
+          </a>
+          <div className="vp-topbar-right">
+            <ProfileShareButton name={fullName} />
           </div>
         </header>
 
-        <div className="public-profile-layout">
-          <aside className="public-profile-identity">
-            <div className="public-profile-photo">
-              {profile.photoUrl ? (
-                <img src={profile.photoUrl} alt={"Portrait de " + fullName} />
-              ) : (
-                <div className="public-profile-monogram" aria-label={fullName}>
-                  <span>{initials}</span>
-                </div>
-              )}
-              <span className="public-profile-photo-accent" aria-hidden="true" />
-            </div>
-
-            <div className="public-profile-nameblock">
+        <section className="vp-hero" id="profil" aria-labelledby="profile-name">
+          <div className="vp-cover">
+            <ProfileImage
+              src={profile.coverUrl || "/profile-images/cover.webp"}
+              fallbackSrc="/profile-images/cover.webp"
+              alt=""
+              fill
+              sizes="(max-width: 1120px) 100vw, 1120px"
+              priority
+              className="vp-cover-image"
+            />
+            <div className="vp-cover-shade" />
+            <a className="vp-cover-company" href="#entreprise">
+              <Building2 size={15} />
               <span>{profile.subsidiary}</span>
-              <h1>{fullName}</h1>
-              <p>{profile.jobTitle}</p>
-              <small>{profile.company}</small>
-            </div>
-
-            {location && (
-              <div className="public-profile-location">
-                <PinIcon />
-                <span>{location}</span>
-              </div>
-            )}
-
-            <div className="public-profile-main-actions">
-              <a className="public-save-contact" href={"/p/" + profile.slug + "/contact.vcf"}>
-                <ContactIcon />
-                <span>Enregistrer le contact</span>
-                <ArrowIcon />
-              </a>
-              <ProfileShareButton name={fullName} />
-            </div>
-
-            <div className="public-profile-quick-actions" aria-label="Actions de contact">
-              {profile.mobile && (
-                <a href={"tel:" + profile.mobile.replace(/\s/g, "")}>
-                  <span><PhoneIcon /></span>
-                  <small>Appeler</small>
-                </a>
+              <ArrowUpRight size={15} />
+            </a>
+          </div>
+          <div className="vp-identity">
+            <div className="vp-avatar">
+              {profile.photoUrl ? (
+                <ProfileImage
+                  src={profile.photoUrl}
+                  alt={`Portrait de ${fullName}`}
+                  fill
+                  sizes="144px"
+                  priority
+                  fallbackText={initials}
+                />
+              ) : (
+                <span className="vp-initials" aria-label={fullName}>
+                  {initials}
+                </span>
               )}
-              {whatsappHref && (
-                <a href={whatsappHref} target="_blank" rel="noreferrer">
-                  <span><WhatsAppIcon /></span>
-                  <small>WhatsApp</small>
-                </a>
-              )}
-              <a href={"mailto:" + profile.email}>
-                <span><MailIcon /></span>
-                <small>E-mail</small>
-              </a>
             </div>
-          </aside>
-
-          <section className="public-profile-content">
-            {profile.presentation && (
-              <section className="public-profile-section public-profile-about">
-                <span className="public-profile-section-label">À propos</span>
-                <p>{profile.presentation}</p>
-              </section>
-            )}
-
-            {hasCommercial && (
-              <section className="public-profile-section public-profile-commercial">
-                <div className="public-profile-section-heading">
-                  <div>
-                    <span className="public-profile-section-label">Solutions</span>
-                    <h2>Comment pouvons-nous vous accompagner ?</h2>
-                  </div>
-                </div>
-
-                {!!profile.services?.length && (
-                  <div className="public-services-grid">
-                    {profile.services.slice(0, 8).map((service, index) => (
-                      <div className="public-service-item" key={service + index}>
-                        <span>{String(index + 1).padStart(2, "0")}</span>
-                        <strong>{service}</strong>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {(profile.commercialCtaLabel && profile.commercialCtaUrl) || profile.brochureUrl ? (
-                  <div className="public-commercial-actions">
-                    {profile.commercialCtaLabel && profile.commercialCtaUrl && (
-                      <a
-                        className="public-commercial-primary"
-                        href={profile.commercialCtaUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <span>{profile.commercialCtaLabel}</span>
-                        <ArrowIcon />
-                      </a>
-                    )}
-
-                    {profile.brochureUrl && (
-                      <a
-                        className="public-commercial-resource"
-                        href={profile.brochureUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <DocumentIcon />
-                        <span>{profile.brochureLabel || "Voir notre brochure"}</span>
-                      </a>
-                    )}
-                  </div>
-                ) : null}
-              </section>
-            )}
-
-            {showOffer && (
-              <section className="public-profile-section public-offer-section">
-                <div className="public-offer-card">
-                  <div className="public-offer-copy">
-                    <span>À découvrir</span>
-                    {profile.offerTitle && <h2>{profile.offerTitle}</h2>}
-                    {profile.offerText && <p>{profile.offerText}</p>}
-                  </div>
-                  {profile.offerUrl && (
-                    <a href={profile.offerUrl} target="_blank" rel="noreferrer">
-                      <span>En savoir plus</span>
-                      <ArrowIcon />
-                    </a>
+            <div className="vp-identity-row">
+              <div className="vp-name">
+                <h1 id="profile-name">{fullName}</h1>
+                <p className="vp-role">{profile.jobTitle}</p>
+                <div className="vp-identity-meta">
+                  <a href="#entreprise">
+                    <Building2 size={15} />
+                    {profile.subsidiary}
+                  </a>
+                  {location && (
+                    <span>
+                      <MapPin size={15} />
+                      {location}
+                    </span>
                   )}
                 </div>
-              </section>
-            )}
+              </div>
+              <div className="vp-hero-actions">
+                <a className="vp-button vp-button-primary" href={vcardHref}>
+                  <UserRoundPlus size={19} />
+                  Enregistrer le contact
+                </a>
+                <ProfileAppointment
+                  {...appointmentProps}
+                  className="vp-button vp-button-secondary"
+                />
+              </div>
+            </div>
+          </div>
+          <nav className="vp-section-nav" aria-label="Sections du profil">
+            <a href="#contact">
+              Mon profil <ArrowDown size={13} />
+            </a>
+            <a href="#entreprise">L’entreprise</a>
+            {!!services.length && <a href="#services">Nos services</a>}
+            {address && <a href="#localisation">Nous trouver</a>}
+          </nav>
+        </section>
 
-            <section className="public-profile-section">
-              <div className="public-profile-section-heading">
+        <section
+          className="vp-personal"
+          id="contact"
+          aria-labelledby="contact-title"
+        >
+          <div className="vp-personal-copy">
+            <h2 id="contact-title">À propos</h2>
+            {profile.presentation && <p>{profile.presentation}</p>}
+            {!!profile.socialLinks?.length && (
+              <div
+                className="vp-socials"
+                aria-label="Mes réseaux professionnels"
+              >
+                {profile.socialLinks.map((link, index) => (
+                  <a
+                    key={`${link.url}-${index}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${link.label} personnel de ${fullName}`}
+                  >
+                    <ProfileSocialIcon label={link.label} />
+                    {link.label.toLowerCase() === "linkedin"
+                      ? "Mon LinkedIn"
+                      : link.label}
+                    <ArrowUpRight size={14} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="vp-direct-contact">
+            <h2 className="vp-contact-title">Coordonnées</h2>
+            {profile.mobile && (
+              <a
+                className="vp-contact-row"
+                href={`tel:${profile.mobile.replace(/\s/g, "")}`}
+              >
+                <span className="vp-icon-tile">
+                  <Phone size={19} />
+                </span>
+                <span>
+                  <small>Téléphone mobile</small>
+                  <strong>{profile.mobile}</strong>
+                </span>
+                <ArrowUpRight size={17} />
+              </a>
+            )}
+            {profile.email && (
+              <a className="vp-contact-row" href={`mailto:${profile.email}`}>
+                <span className="vp-icon-tile">
+                  <Mail size={19} />
+                </span>
+                <span>
+                  <small>E-mail professionnel</small>
+                  <strong>{profile.email}</strong>
+                </span>
+                <ArrowUpRight size={17} />
+              </a>
+            )}
+            {whatsappHref && (
+              <a
+                className="vp-whatsapp"
+                href={whatsappHref}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <MessageCircle size={20} />
+                <span>Échanger sur WhatsApp</span>
+                <ArrowUpRight size={17} />
+              </a>
+            )}
+          </div>
+        </section>
+
+        <section
+          className="vp-company-section"
+          id="entreprise"
+          aria-labelledby="company-title"
+        >
+          <div className="vp-section-heading">
+            <span className="vp-eyebrow">L’entreprise</span>
+            <span className="vp-section-line" />
+          </div>
+          <div className="vp-company-intro">
+            <div className="vp-company-logo">
+              <Image src={logoUrl} alt="" width={114} height={80} unoptimized />
+            </div>
+            <div className="vp-company-name">
+              <span>{profile.company}</span>
+              <h2 id="company-title">{profile.subsidiary}</h2>
+              {profile.companyPresentation && (
+                <p>{profile.companyPresentation}</p>
+              )}
+              {!address && profile.phone && (
+                <a
+                  className="vp-company-phone vp-company-phone-inline"
+                  href={`tel:${profile.phone.replace(/\s/g, "")}`}
+                >
+                  <Phone size={15} />
+                  <span>Standard de l’entreprise</span>
+                  <strong>{profile.phone}</strong>
+                </a>
+              )}
+            </div>
+            {profile.website && (
+              <a
+                className="vp-company-website"
+                href={profile.website}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Globe2 size={18} />
+                <span>Visiter notre site</span>
+                <ArrowUpRight size={16} />
+              </a>
+            )}
+          </div>
+
+          {!!services.length && (
+            <div className="vp-services" id="services">
+              <div className="vp-services-heading">
                 <div>
-                  <span className="public-profile-section-label">Coordonnées</span>
-                  <h2>Restons en contact</h2>
+                  <h2>Nos services</h2>
                 </div>
               </div>
+              <div className="vp-service-grid">
+                {services.map((service, index) => {
+                  const image =
+                    profile.serviceImages?.find((item) => item.name === service)
+                      ?.imageUrl || serviceImageFor(service);
+                  return (
+                    <article
+                      className="vp-service-card"
+                      key={`${service}-${index}`}
+                    >
+                      <div className="vp-service-image">
+                        <ProfileImage
+                          src={image}
+                          fallbackSrc={serviceImageFor(service)}
+                          alt={service}
+                          fill
+                          sizes="(max-width: 600px) 50vw, (max-width: 900px) 45vw, 260px"
+                        />
+                        <span className="vp-service-number">
+                          {(index + 1).toString().padStart(2, "0")}
+                        </span>
+                      </div>
+                      <div className="vp-service-caption">
+                        <h3>{service}</h3>
+                        <a
+                          href="#rendez-vous"
+                          aria-label={`Échanger au sujet de ${service}`}
+                        >
+                          <ArrowUpRight size={19} />
+                        </a>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-              <div className="public-profile-contact-list">
-                {profile.mobile && (
-                  <a href={"tel:" + profile.mobile.replace(/\s/g, "")}>
-                    <span className="public-contact-icon"><PhoneIcon /></span>
-                    <span className="public-contact-copy">
-                      <small>Téléphone mobile</small>
-                      <strong>{profile.mobile}</strong>
-                    </span>
-                    <span className="public-contact-arrow"><ArrowIcon /></span>
-                  </a>
-                )}
-
-                {profile.phone && (
-                  <a href={"tel:" + profile.phone.replace(/\s/g, "")}>
-                    <span className="public-contact-icon"><PhoneIcon /></span>
-                    <span className="public-contact-copy">
-                      <small>Téléphone fixe</small>
-                      <strong>{profile.phone}</strong>
-                    </span>
-                    <span className="public-contact-arrow"><ArrowIcon /></span>
-                  </a>
-                )}
-
-                <a href={"mailto:" + profile.email}>
-                  <span className="public-contact-icon"><MailIcon /></span>
-                  <span className="public-contact-copy">
-                    <small>E-mail professionnel</small>
-                    <strong>{profile.email}</strong>
-                  </span>
-                  <span className="public-contact-arrow"><ArrowIcon /></span>
-                </a>
-
-                <a href={profile.website} target="_blank" rel="noreferrer">
-                  <span className="public-contact-icon"><WebIcon /></span>
-                  <span className="public-contact-copy">
-                    <small>Site web</small>
-                    <strong>{profile.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}</strong>
-                  </span>
-                  <span className="public-contact-arrow"><ExternalIcon /></span>
-                </a>
-
+          {((profile.commercialCtaLabel && profile.commercialCtaUrl) ||
+            profile.brochureUrl) && (
+            <div className="vp-company-resources">
+              {profile.commercialCtaLabel && profile.commercialCtaUrl && (
                 <a
-                  href={mapsHref(profile.address, profile.city, profile.country)}
+                  className="vp-text-link"
+                  href={profile.commercialCtaUrl}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <span className="public-contact-icon"><PinIcon /></span>
-                  <span className="public-contact-copy">
-                    <small>Adresse professionnelle</small>
-                    <strong>{profile.address}, {profile.city}</strong>
-                  </span>
-                  <span className="public-contact-arrow"><ExternalIcon /></span>
+                  {profile.commercialCtaLabel}
+                  <ArrowRight size={17} />
                 </a>
+              )}
+              {profile.brochureUrl && (
+                <a
+                  className="vp-text-link vp-brochure"
+                  href={profile.brochureUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ArrowDownToLine size={17} />
+                  {profile.brochureLabel || "Consulter notre brochure"}
+                </a>
+              )}
+            </div>
+          )}
+          {showOffer && (
+            <aside className="vp-offer">
+              <div>
+                {profile.offerTitle && <h3>{profile.offerTitle}</h3>}
+                {profile.offerText && <p>{profile.offerText}</p>}
+              </div>
+              {profile.offerUrl && (
+                <a
+                  className="vp-button vp-button-secondary"
+                  href={profile.offerUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  En savoir plus
+                  <ArrowUpRight size={16} />
+                </a>
+              )}
+            </aside>
+          )}
+
+          {!!brand.socialLinks?.length && (
+            <section
+              className="vp-company-socials"
+              aria-labelledby="company-socials-title"
+            >
+              <div className="vp-follow-heading">
+                <h2 id="company-socials-title">Suivez-nous</h2>
+                <span>{profile.company}</span>
+              </div>
+              <div className="vp-follow-links">
+                {brand.socialLinks.map((link) => (
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    key={link.label}
+                    aria-label={`${profile.company} sur ${link.label}`}
+                  >
+                    <span className="vp-follow-icon">
+                      <ProfileSocialIcon label={link.label} />
+                    </span>
+                    <span>{link.label}</span>
+                    <ArrowUpRight size={17} />
+                  </a>
+                ))}
               </div>
             </section>
+          )}
 
-            {!!profile.socialLinks?.length && (
-              <section className="public-profile-section">
-                <span className="public-profile-section-label">Réseaux professionnels</span>
-                <div className="public-profile-socials">
-                  {profile.socialLinks.map((link) => (
-                    <a href={link.url} target="_blank" rel="noreferrer" key={link.url}>
-                      <span>{link.label}</span>
-                      <ExternalIcon />
-                    </a>
-                  ))}
+          <div
+            className={`vp-visit-grid${!address ? " vp-visit-grid-single" : ""}`}
+          >
+            {address && (
+              <section
+                className="vp-location-card"
+                id="localisation"
+                aria-labelledby="location-title"
+              >
+                <div className="vp-location-heading">
+                  <span className="vp-icon-tile">
+                    <MapPin size={21} />
+                  </span>
+                  <div>
+                    <h2 id="location-title">Nos bureaux</h2>
+                  </div>
                 </div>
+                <div className="vp-map">
+                  <iframe
+                    title={`Localisation de ${profile.subsidiary} : ${address}`}
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                  <a href={mapsHref} target="_blank" rel="noreferrer">
+                    Ouvrir dans Maps
+                    <ArrowUpRight size={15} />
+                  </a>
+                </div>
+                <div className="vp-address">
+                  <div>
+                    <strong>{profile.subsidiary}</strong>
+                    <p>{address}</p>
+                  </div>
+                  <a
+                    className="vp-directions"
+                    href={mapsHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Itinéraire vers ${profile.subsidiary}`}
+                  >
+                    <ArrowUpRight size={20} />
+                  </a>
+                </div>
+                {profile.phone && (
+                  <a
+                    className="vp-company-phone"
+                    href={`tel:${profile.phone.replace(/\s/g, "")}`}
+                  >
+                    <Phone size={15} />
+                    <span>Standard de l’entreprise</span>
+                    <strong>{profile.phone}</strong>
+                  </a>
+                )}
               </section>
             )}
-
-            <footer className="public-profile-footer">
-              <div>
-                <img
-                  src={brand.logoUrl || "/branding/vigilus-groupe-sa.png"}
-                  alt=""
-                  aria-hidden="true"
-                />
+            <section
+              className="vp-meeting-card"
+              id="rendez-vous"
+              aria-labelledby="meeting-title"
+            >
+              <h2 id="meeting-title">Rendez-vous</h2>
+              <div className="vp-meeting-person">
+                <span className="vp-mini-avatar">
+                  {profile.photoUrl ? (
+                    <ProfileImage
+                      src={profile.photoUrl}
+                      alt=""
+                      fill
+                      sizes="60px"
+                      fallbackText={initials}
+                    />
+                  ) : (
+                    initials
+                  )}
+                </span>
                 <span>
-                  <strong>{profile.company}</strong>
-                  <small>Carte de visite digitale</small>
+                  <strong>{fullName}</strong>
+                  <small>{profile.jobTitle}</small>
                 </span>
               </div>
-              <p>NFC · QR · vCard</p>
-            </footer>
-          </section>
-        </div>
+              <ProfileAppointment
+                {...appointmentProps}
+                triggerLabel={
+                  calendarUrl(profile.appointmentUrl)
+                    ? "Choisir un créneau"
+                    : "Proposer un rendez-vous"
+                }
+                triggerIcon="arrow"
+              />
+              <small className="vp-meeting-note">
+                {calendarUrl(profile.appointmentUrl)
+                  ? "Choisissez un créneau dans mon agenda."
+                  : "Le créneau sera confirmé directement avec vous."}
+              </small>
+            </section>
+          </div>
+        </section>
+        <footer className="vp-footer">
+          <span>{profile.company}</span>
+          <a href="#profil">
+            Retour en haut <ArrowUpRight size={14} />
+          </a>
+        </footer>
       </div>
-
-      <nav className="public-profile-mobile-dock" aria-label="Actions rapides">
-        <a className="public-mobile-save" href={"/p/" + profile.slug + "/contact.vcf"}>
-          <ContactIcon />
-          <span>Enregistrer</span>
+      <nav className="vp-mobile-dock" aria-label="Actions rapides">
+        <a className="vp-button vp-button-primary" href={vcardHref}>
+          <UserRoundPlus size={18} />
+          Enregistrer
         </a>
-        <a
-          className="public-mobile-reach"
-          href={secondaryMobileHref}
-          target={whatsappHref ? "_blank" : undefined}
-          rel={whatsappHref ? "noreferrer" : undefined}
-        >
-          {whatsappHref ? <WhatsAppIcon /> : profile.mobile ? <PhoneIcon /> : <MailIcon />}
-          <span>{secondaryMobileLabel}</span>
-        </a>
+        <ProfileAppointment
+          {...appointmentProps}
+          className="vp-button vp-button-secondary"
+        />
       </nav>
     </main>
   );

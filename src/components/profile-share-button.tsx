@@ -27,8 +27,8 @@ export function ProfileShareButton({ name }: { name: string }) {
           url
         });
         return;
-      } catch {
-        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
       }
     }
 
@@ -42,9 +42,9 @@ export function ProfileShareButton({ name }: { name: string }) {
   }
 
   return (
-    <button className="public-share-button" type="button" onClick={share}>
+    <button className="vp-share-button" type="button" onClick={share}>
       <ShareIcon />
-      <span>{copied ? "Lien copié" : "Partager"}</span>
+      <span aria-live="polite">{copied ? "Lien copié" : "Partager"}</span>
     </button>
   );
 }

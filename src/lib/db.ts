@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { DigitalCard, NfcProvisioningStatus, SocialLink } from "@/lib/profiles";
+import type { DigitalCard, NfcProvisioningStatus, ServiceImage, SocialLink } from "@/lib/profiles";
 import { seedProfiles } from "@/lib/profiles";
 import type { BrandConfig } from "@/lib/brands";
 import { defaultBrandConfigs, defaultBrandFor } from "@/lib/brands";
@@ -29,8 +29,12 @@ type CardRow = {
   country: string;
   presentation: string | null;
   photo_url: string | null;
+  cover_url: string | null;
+  company_presentation: string | null;
+  appointment_url: string | null;
   social_links: SocialLink[] | string | null;
   services: string[] | string | null;
+  service_images: ServiceImage[] | string | null;
   commercial_cta_label: string | null;
   commercial_cta_url: string | null;
   offer_title: string | null;
@@ -49,6 +53,7 @@ type BrandRow = {
   primary_color: string;
   accent_color: string;
   logo_url: string | null;
+  social_links: SocialLink[] | string | null;
 };
 
 export type MediaAsset = {
@@ -112,6 +117,18 @@ function parseStringArray(value: string[] | string | null): string[] {
   }
 }
 
+function parseServiceImages(value: ServiceImage[] | string | null): ServiceImage[] {
+  try {
+    const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is ServiceImage =>
+      Boolean(item) && typeof item.name === "string" && typeof item.imageUrl === "string"
+    );
+  } catch {
+    return [];
+  }
+}
+
 function dateOnlyValue(value: string | Date | null | undefined) {
   const normalized = dateValue(value);
   return normalized ? normalized.slice(0, 10) : undefined;
@@ -144,8 +161,12 @@ function rowToCard(row: CardRow | undefined): DigitalCard | undefined {
     country: row.country,
     presentation: row.presentation ?? undefined,
     photoUrl: row.photo_url ?? undefined,
+    coverUrl: row.cover_url ?? undefined,
+    companyPresentation: row.company_presentation ?? undefined,
+    appointmentUrl: row.appointment_url ?? undefined,
     socialLinks: parseSocialLinks(row.social_links),
     services: parseStringArray(row.services),
+    serviceImages: parseServiceImages(row.service_images),
     commercialCtaLabel: row.commercial_cta_label ?? undefined,
     commercialCtaUrl: row.commercial_cta_url ?? undefined,
     offerTitle: row.offer_title ?? undefined,
@@ -166,7 +187,11 @@ function rowToBrand(row: BrandRow | undefined): BrandConfig | undefined {
     subsidiary: row.subsidiary,
     primaryColor: row.primary_color,
     accentColor: row.accent_color,
-    logoUrl: row.logo_url || defaultBrandFor(row.subsidiary).logoUrl
+    logoUrl: row.logo_url || defaultBrandFor(row.subsidiary).logoUrl,
+    // NULL inherits group links for older records; [] deliberately hides them.
+    socialLinks: row.social_links == null
+      ? defaultBrandFor(row.subsidiary).socialLinks
+      : parseSocialLinks(row.social_links)
   };
 }
 
@@ -204,6 +229,10 @@ async function initializeDatabase() {
 
   await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS whatsapp_message TEXT");
   await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS services JSONB NOT NULL DEFAULT '[]'::jsonb");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS cover_url TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS company_presentation TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS appointment_url TEXT");
+  await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS service_images JSONB NOT NULL DEFAULT '[]'::jsonb");
   await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS commercial_cta_label TEXT");
   await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS commercial_cta_url TEXT");
   await query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS offer_title TEXT");
@@ -245,9 +274,12 @@ async function initializeDatabase() {
       "subsidiary TEXT PRIMARY KEY," +
       "primary_color TEXT NOT NULL," +
       "accent_color TEXT NOT NULL," +
-      "logo_url TEXT" +
+      "logo_url TEXT," +
+      "social_links JSONB" +
     ")"
   );
+
+  await query("ALTER TABLE brand_configs ADD COLUMN IF NOT EXISTS social_links JSONB");
 
   await query(
     "CREATE TABLE IF NOT EXISTS media_assets (" +
@@ -279,14 +311,14 @@ async function initializeDatabase() {
   const countRows = await query<{ count: number }>("SELECT COUNT(*)::int AS count FROM cards");
   if (Number(countRows[0]?.count ?? 0) === 0) {
     for (const profile of seedProfiles) {
-      await query(
+      const insertedRows = await query<{ id: number }>(
         "INSERT INTO cards (" +
           "slug,nfc_token,nfc_mode,nfc_status,active,first_name,last_name,job_title," +
           "subsidiary,company,mobile,whatsapp,phone,email,website,address,city,country," +
           "presentation,photo_url,social_links" +
         ") VALUES (" +
           "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb" +
-        ") ON CONFLICT (slug) DO NOTHING",
+        ") ON CONFLICT (slug) DO NOTHING RETURNING id",
         [
           profile.slug,
           profile.nfcToken,
@@ -311,6 +343,7 @@ async function initializeDatabase() {
           JSON.stringify(profile.socialLinks ?? [])
         ]
       );
+      if (insertedRows[0]) await saveCommercialFields(Number(insertedRows[0].id), profile);
     }
   }
 }
@@ -334,6 +367,9 @@ export async function getAllProfiles(options?: { includeInactive?: boolean }) {
 }
 
 export async function getProfileBySlug(slug: string, options?: { includeInactive?: boolean }) {
+  if (process.env.NODE_ENV === "development" && !process.env.DATABASE_URL?.trim() && !options?.includeInactive) {
+    return seedProfiles.find((profile) => profile.active && profile.slug === slug);
+  }
   await ensureSchema();
   const rows = options?.includeInactive
     ? await query<CardRow>("SELECT * FROM cards WHERE slug=$1 LIMIT 1", [slug])
@@ -375,7 +411,8 @@ async function saveCommercialFields(id: number, card: DigitalCard) {
     "UPDATE cards SET " +
       "whatsapp_message=$1,services=$2::jsonb,commercial_cta_label=$3,commercial_cta_url=$4," +
       "offer_title=$5,offer_text=$6,offer_url=$7,offer_start_date=$8,offer_end_date=$9," +
-      "brochure_label=$10,brochure_url=$11,updated_at=NOW() WHERE id=$12",
+      "brochure_label=$10,brochure_url=$11,cover_url=$12,company_presentation=$13," +
+      "appointment_url=$14,service_images=$15::jsonb,updated_at=NOW() WHERE id=$16",
     [
       card.whatsappMessage ?? null,
       JSON.stringify(card.services ?? []),
@@ -388,6 +425,10 @@ async function saveCommercialFields(id: number, card: DigitalCard) {
       card.offerEndDate || null,
       card.brochureLabel ?? null,
       card.brochureUrl ?? null,
+      card.coverUrl ?? null,
+      card.companyPresentation ?? null,
+      card.appointmentUrl ?? null,
+      JSON.stringify(card.serviceImages ?? []),
       id
     ]
   );
@@ -508,6 +549,9 @@ export async function setCardProvisioningStatus(
 }
 
 export async function getBrandConfig(subsidiary: string) {
+  if (process.env.NODE_ENV === "development" && !process.env.DATABASE_URL?.trim()) {
+    return defaultBrandFor(subsidiary);
+  }
   await ensureSchema();
   const rows = await query<BrandRow>(
     "SELECT * FROM brand_configs WHERE subsidiary=$1 LIMIT 1",
@@ -525,10 +569,12 @@ export async function getAllBrandConfigs() {
 export async function saveBrandConfig(config: BrandConfig) {
   await ensureSchema();
   await query(
-    "INSERT INTO brand_configs (subsidiary,primary_color,accent_color,logo_url) " +
-    "VALUES ($1,$2,$3,$4) ON CONFLICT (subsidiary) DO UPDATE SET " +
-    "primary_color=EXCLUDED.primary_color,accent_color=EXCLUDED.accent_color,logo_url=EXCLUDED.logo_url",
-    [config.subsidiary, config.primaryColor, config.accentColor, config.logoUrl ?? null]
+    "INSERT INTO brand_configs (subsidiary,primary_color,accent_color,logo_url,social_links) " +
+    "VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT (subsidiary) DO UPDATE SET " +
+    "primary_color=EXCLUDED.primary_color,accent_color=EXCLUDED.accent_color," +
+    "logo_url=EXCLUDED.logo_url,social_links=EXCLUDED.social_links",
+    [config.subsidiary, config.primaryColor, config.accentColor, config.logoUrl ?? null,
+      config.socialLinks === undefined ? null : JSON.stringify(config.socialLinks)]
   );
 }
 

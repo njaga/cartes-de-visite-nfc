@@ -23,8 +23,12 @@ CREATE TABLE IF NOT EXISTS cards (
   country TEXT NOT NULL,
   presentation TEXT,
   photo_url TEXT,
+  cover_url TEXT,
+  company_presentation TEXT,
+  appointment_url TEXT,
   social_links JSONB NOT NULL DEFAULT '[]'::jsonb,
   services JSONB NOT NULL DEFAULT '[]'::jsonb,
+  service_images JSONB NOT NULL DEFAULT '[]'::jsonb,
   commercial_cta_label TEXT,
   commercial_cta_url TEXT,
   offer_title TEXT,
@@ -51,8 +55,13 @@ CREATE TABLE IF NOT EXISTS brand_configs (
   subsidiary TEXT PRIMARY KEY,
   primary_color TEXT NOT NULL,
   accent_color TEXT NOT NULL,
-  logo_url TEXT
+  logo_url TEXT,
+  social_links JSONB
 );
+
+-- Existing filiales inherit the group links until explicitly customized.
+-- An empty JSON array hides the company links without restoring defaults.
+ALTER TABLE brand_configs ADD COLUMN IF NOT EXISTS social_links JSONB;
 
 CREATE TABLE IF NOT EXISTS media_assets (
   filename TEXT PRIMARY KEY,

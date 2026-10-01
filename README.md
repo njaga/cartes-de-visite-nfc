@@ -109,6 +109,7 @@ Après test sur iPhone et Android, verrouiller l'écriture du tag NFC. Ne jamais
 
 Au premier démarrage d'une base vide, un profil de démonstration est créé automatiquement. Ses données personnelles sont fictives et doivent être remplacées avant mise en production.
 
+En développement uniquement (`npm run dev`), si `DATABASE_URL` est absente, `/p/demo-vigilus` et sa vCard restent consultables avec les données de démonstration et l’identité visuelle par défaut. Les autres profils restent introuvables. Cette solution d’aperçu ne s’applique ni à la production, ni à l’administration, ni aux écritures en base.
 
 ## Workflow mobile de programmation NFC
 
@@ -166,9 +167,11 @@ Formats acceptés :
 - JPG ;
 - PNG ;
 - WEBP ;
-- 4 Mo maximum.
+- 4 Mo maximum pour l’ensemble des images sélectionnées dans un même enregistrement (portrait, couverture et services réunis).
 
-Les fichiers sont stockés dans le dossier persistant associé à \`DB_PATH\`, sous \`uploads/\`, puis servis par la route \`/uploads/<fichier>\`.
+Pour ajouter davantage d’images, enregistrez la fiche puis importez les suivantes. La limite est vérifiée dans le navigateur et sur le serveur avant tout enregistrement de fichier. Les Server Actions acceptent une requête de 4,5 Mo afin de laisser de la place aux autres champs du formulaire.
+
+Les fichiers sont stockés dans la table PostgreSQL `media_assets`, puis servis par la route `/uploads/<fichier>`.
 
 ## Identité visuelle par filiale
 
@@ -244,4 +247,10 @@ Chaque carte peut maintenant servir de support commercial léger avec des champs
 - brochure ou catalogue ;
 - message WhatsApp prérempli.
 
+Le profil public distingue le collaborateur et son entreprise. L’administration permet aussi de configurer une photo de couverture (`coverUrl`), la présentation de l’entreprise (`companyPresentation`), une image par service (`serviceImages`, associées au nom du service) et un lien d’agenda externe (`appointmentUrl`). Sans agenda, le visiteur prépare une demande de rendez-vous à transmettre au collaborateur. La carte et l’itinéraire utilisent l’adresse des bureaux.
+
+Ces champs sont optionnels et ajoutés automatiquement aux bases existantes. Les imports Excel conservent les images des services et acceptent les colonnes facultatives « Couverture URL », « Présentation entreprise » et « Rendez-vous URL ».
+
 Les blocs vides ne sont jamais affichés. Une offre n'apparaît que pendant sa période de validité lorsqu'une date est renseignée. Le profil conserve donc un rendu sobre même si certains collaborateurs n'utilisent pas les fonctions commerciales.
+
+La section « Suivez-nous » utilise les pages de l’entreprise configurées dans `/admin/filiales` (`brand_configs.social_links`), séparément des réseaux personnels du collaborateur. Les filiales Vigilus héritent des liens [Facebook](https://www.facebook.com/vigilusgroupe), [LinkedIn](https://www.linkedin.com/company/vigilus-facilities) et [Instagram](https://www.instagram.com/vigilusfacilities) publiés sur le [site officiel Vigilus Facilities](https://vigilus-facilities.com/), vérifiés le 1er octobre 2026. Une valeur SQL `NULL` conserve ces liens par défaut ; enregistrer des champs vides stocke `[]` et les masque. Les entreprises hors de la liste des filiales Vigilus n’héritent d’aucun réseau social. Le LinkedIn personnel reste configurable sur la fiche du collaborateur.
